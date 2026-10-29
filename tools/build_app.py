@@ -26,7 +26,8 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-NAME = "BeamNG.Earth"
+NAME = "BeamNG.Earth-Russia-Edition"
+PRODUCT_NAME = "BeamNG.Earth Russia Edition"
 IS_WIN = os.name == "nt"
 SEP = ";" if IS_WIN else ":"
 
@@ -71,10 +72,10 @@ def version_files(work, ver):
     (asInvoker, the supported Windows versions, long paths; it adds Common Controls) with the app's identity."""
     v4 = win_version(ver)
     dotted = ".".join(map(str, v4))
-    strings = {"CompanyName": "TecnaGamer", "FileDescription": "BeamNG.Earth launcher and world server",
+    strings = {"CompanyName": "GhosterGroup", "FileDescription": f"{PRODUCT_NAME} launcher and world server",
                "FileVersion": ver, "InternalName": NAME, "LegalCopyright": "Copyright (c) 2026 TecnaGamer, MIT License",
-               "OriginalFilename": f"{NAME}-{ver}.exe", "ProductName": NAME, "ProductVersion": ver,
-               "Comments": "Drive the real world in BeamNG.drive. https://github.com/TecnaGamer/BeamNG.Earth"}
+               "OriginalFilename": f"{NAME}-{ver}.exe", "ProductName": PRODUCT_NAME, "ProductVersion": ver,
+               "Comments": "Drive the real world in BeamNG.drive. https://github.com/GhosterGroup/BeamNG.Earth-Russia-Edition"}
     vf = os.path.join(work, "version_info.txt")
     with open(vf, "w", encoding="utf-8") as f:
         f.write("VSVersionInfo(\n"

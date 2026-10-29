@@ -931,7 +931,7 @@ def windows_console():
             if k32.AllocConsole():
                 sys.stdout = sys.stderr = open("CONOUT$", "w", buffering=1, encoding="utf-8", errors="replace")
                 sys.stdin = open("CONIN$", "r", encoding="utf-8", errors="replace")
-        k32.SetConsoleTitleW("BeamNG.Earth")
+        k32.SetConsoleTitleW("BeamNG.Earth Russia Edition")
     except (OSError, AttributeError):
         pass
 
@@ -1294,7 +1294,7 @@ def beammp_up(user_dir, build, args):
 
 def run(args):
     import install
-    title(f"BeamNG.Earth {install.version()}")
+    title(f"BeamNG.Earth Russia Edition {install.version()}")
     support_notice()
     wine = under_wine()
     build = "native"
