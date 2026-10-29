@@ -27,3 +27,10 @@ Mapped Overture infrastructure barriers are rendered from line geometry and OSM 
 of a conservative road corridor, and inherit the mod's near-player collision and tile-unload behavior. Fence lines
 are currently honored wherever the source maps them; the repository does not contain an authoritative country polygon
 layer for safely gating additional procedural styles to Russia. No coordinate rectangle is used for that purpose.
+
+## Commercial Places
+
+Tiles with mapped commercial building candidates may also load the optional Overture Places layer. Specific open,
+high-confidence categories within the footprint or 12 m of its outline inform the existing storefront style. Generic
+POI categories and brand names are not used to fabricate shop signs. The Places layer is not requested on unrelated
+residential tiles.

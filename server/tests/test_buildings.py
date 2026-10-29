@@ -128,6 +128,33 @@ class PlanTest(unittest.TestCase):
         self.assertFalse(bld.is_industrial({"class": "", "name": "Factory Outlet",
                                             "poi_categories": ["shopping_mall"]}, 9000.0))
 
+    def test_overture_places_are_categorized_and_associated_with_building_ring(self):
+        import geodesy
+        f = bld.mapgeom.Features(
+            layer="places", ids=np.array(["open-shop", "closed-wash", "weak-cafe"]),
+            kind=np.array([bld.mapgeom.POINT] * 3, np.uint8),
+            part_off=np.array([0, 1, 2, 3]), ring_off=np.array([0, 1, 2, 3]), coord_off=np.array([0, 1, 2, 3]),
+            lonlat=np.array([[104.28, 52.29], [104.2801, 52.29], [104.2802, 52.29]], np.float64),
+            attrs={"taxonomy": np.array(["supermarket", "car_wash", "cafe"]),
+                   "basic_category": np.array(["retail", "service", "food_and_drink"]),
+                   "operating_status": np.array(["operating", "closed", "operating"]),
+                   "confidence": np.array([0.9, 0.9, 0.2])})
+        frame = geodesy.EnuFrame(52.29, 104.28)
+        grid = bld._poi_grid(frame, [f])
+        self.assertEqual(sum(len(items) for items in grid.values()), 1)
+        ring = rect(-20, -20, 40, 40)
+        self.assertEqual(bld._poi_categories_near_ring(ring, (0, 0), grid), ("supermarket",))
+
+    def test_poi_layer_prefilter_avoids_requests_for_unrelated_tiles(self):
+        class Buildings:
+            kind = np.array([bld.mapgeom.POLYGON])
+            attrs = {"class": np.array(["house"])}
+
+            def __len__(self):
+                return 1
+
+        self.assertFalse(bld._possible_poi_building([Buildings()]))
+
     def test_floor_fallback_does_not_scale_with_unknown_building_area(self):
         small = bld.plan(rect(0, 0, 20, 20), {"class": ""}, lat=52.29, lon=104.28)
         huge = bld.plan(rect(0, 0, 120, 100), {"class": ""}, lat=52.29, lon=104.28)

@@ -257,7 +257,8 @@ GLASS_FLOORS = (20, 40)     # towers from 20 floors: glass, but for OLD_TOWER_GL
 OLD_TOWER_GLASS = 0.65      # ... (Midtown's pre-war skyscrapers are stone)
 MIDRISE_GLASS_OFFICE = 0.45 # offices / hotels of 7+ floors: this share glass (modern), the rest masonry
 TOWER_SHOP_FLOORS = 6       # a building this tall in a dense core: a shop / lobby ground floor whatever its class
-SHOP_CLASSES = {"retail", "commercial", "supermarket", "kiosk", "office", "hotel", "civic", "restaurant"}
+SHOP_CLASSES = {"retail", "commercial", "supermarket", "kiosk", "office", "hotel", "civic", "restaurant", "cafe",
+                "fast_food", "car_wash", "car_repair", "tyre_shop", "pharmacy", "convenience"}
 HOUSE_CLASSES = {"house", "detached", "semidetached_house", "bungalow", "residential", "farm", "static_caravan",
                  "cabin", "dormitory"}
 ROW_CLASSES = {"terrace"}
@@ -470,6 +471,104 @@ def has_commercial_poi(attrs):
         categories = (categories,)
     return any(any(term in str(category).strip().lower() for term in COMMERCIAL_POI_TERMS)
                for category in categories)
+
+
+_POI_KIND_TERMS = ("shopping_mall", "department_store", "supermarket", "grocery", "convenience", "car_wash",
+                   "car_repair", "auto_repair", "tyre", "tire", "pharmacy", "fast_food", "restaurant", "cafe")
+_POI_QUERY_CLASSES = {"commercial", "retail", "supermarket", "kiosk", "restaurant", "cafe", "fast_food",
+                      "car_wash", "car_repair", "tyre_shop", "pharmacy", "convenience", "shop", "store",
+                      "market", "mall"}
+POI_GRID_M = 64.0
+POI_ASSOCIATION_M = 12.0
+
+
+def _poi_category(taxonomy, basic_category=""):
+    """Specific, normalized shop/service kind from Overture taxonomy; broad categories are ignored."""
+    value = (str(taxonomy or "") + " " + str(basic_category or "")).strip().lower().replace("-", "_").replace(" ", "_")
+    return next((term for term in _POI_KIND_TERMS if term in value), None)
+
+
+def _possible_poi_building(layers):
+    """Only request the optional Places layer where a mapped shop class or a large unknown footprint may benefit."""
+    for f in layers:
+        if f is None or not len(f.kind):
+            continue
+        classes = f.attrs.get("class")
+        for i in range(len(f.kind)):
+            cls = str(classes[i] or "").strip().lower() if classes is not None else ""
+            if cls in _POI_QUERY_CLASSES:
+                return True
+            if cls or int(f.kind[i]) != mapgeom.POLYGON:
+                continue
+            parts = f.parts(i)
+            if not parts or not parts[0] or len(parts[0][0]) < 4:
+                continue
+            ll = np.asarray(parts[0][0], np.float64)
+            lat = float(np.mean(ll[:, 1]))
+            x, y = ll[:, 0] * (111320.0 * math.cos(math.radians(lat))), ll[:, 1] * 110540.0
+            area = 0.5 * abs(float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))))
+            if area >= BIG_BOX_M2:
+                return True
+    return False
+
+
+def _poi_grid(frame, layers):
+    """Sparse 64 m grid of confidently categorized, open commercial Places points for one tile build."""
+    grid = {}
+    for f in layers or ():
+        if f is None or not len(f.kind):
+            continue
+        tax, basic = f.attrs.get("taxonomy"), f.attrs.get("basic_category")
+        if tax is None and basic is None:
+            continue
+        status, confidence = f.attrs.get("operating_status"), f.attrs.get("confidence")
+        xy = f.xy_in(frame)
+        for i in range(len(f.kind)):
+            if int(f.kind[i]) != mapgeom.POINT:
+                continue
+            category = _poi_category(tax[i] if tax is not None else "", basic[i] if basic is not None else "")
+            if category is None:
+                continue
+            if status is not None and str(status[i]).strip().lower() in {"closed", "permanently_closed"}:
+                continue
+            if confidence is not None and np.isfinite(confidence[i]) and float(confidence[i]) < 0.35:
+                continue
+            p0 = int(f.coord_off[f.ring_off[f.part_off[i]]])
+            p = xy[p0]
+            key = (math.floor(float(p[0]) / POI_GRID_M), math.floor(float(p[1]) / POI_GRID_M))
+            grid.setdefault(key, []).append((float(p[0]), float(p[1]), category))
+    return grid
+
+
+def _poi_categories_near_ring(ring, origin, grid):
+    """Specific commercial POIs inside a footprint or within 12 m of its outline."""
+    if not grid:
+        return ()
+    p0 = np.asarray(origin, np.float64)
+    r = np.asarray(ring, np.float64) + p0
+    pad = POI_ASSOCIATION_M
+    lo, hi = r.min(axis=0) - pad, r.max(axis=0) + pad
+    cats = set()
+    x0, y0 = math.floor(lo[0] / POI_GRID_M), math.floor(lo[1] / POI_GRID_M)
+    x1, y1 = math.floor(hi[0] / POI_GRID_M), math.floor(hi[1] / POI_GRID_M)
+    if (x1 - x0 + 1) * (y1 - y0 + 1) <= 256:
+        candidates = (point for gx in range(x0, x1 + 1) for gy in range(y0, y1 + 1)
+                      for point in grid.get((gx, gy), ()))
+    else:  # huge mall footprints: scan populated cells rather than iterating millions of empty 64 m bins
+        candidates = (point for (gx, gy), items in grid.items() if x0 <= gx <= x1 and y0 <= gy <= y1 for point in items)
+    a, b = r[:-1], r[1:]
+    d = b - a
+    d2 = np.maximum(np.sum(d * d, axis=1), 1e-9)
+    for x, y, category in candidates:
+        p = np.array([x, y])
+        if _inside(ring, p - p0):
+            cats.add(category)
+            continue
+        t = np.clip(np.sum((p - a) * d, axis=1) / d2, 0.0, 1.0)
+        q = a + t[:, None] * d
+        if float(np.min(np.hypot(*(p - q).T))) <= pad:
+            cats.add(category)
+    return tuple(sorted(cats))
 
 
 def validate_building_overrides(doc):
@@ -2322,7 +2421,7 @@ class _PartsOf:
 
 def tile_buildings(frame, x0, y0, x1, y1, layers, elev, water=None, part_layers=(), west_town=False, roads_xy=None,
                    tunnels_xy=None, garages_xy=None, supports=None, bridges_xy=None, water_xy=None, decks=None,
-                   ml_roads_xy=None, ways_xy=None, skip=frozenset(), min_size=None):
+                   ml_roads_xy=None, ways_xy=None, skip=frozenset(), min_size=None, places_layers=()):
     """[(Spec, gmin, gmax)] of the buildings whose footprint centroid is in the tile [x0, x1) x [y0, y1)
     (anchor frame), rings relative to (x0, y0). layers: mapgeom.Features of buildings (one per map cell; a
     building in two cells is taken once, by id); elev(lat, lon) the physics ground. part_layers: the
@@ -2336,6 +2435,7 @@ def tile_buildings(frame, x0, y0, x1, y1, layers, elev, water=None, part_layers=
     footprint m²): only buildings at least that tall or that large (the skyline tiles: skyline_tile), tested before
     any other work on a building."""
     parts_of = _PartsOf(frame, part_layers)     # building id -> [(ring in the anchor frame, (own height, bottom))]
+    poi_index = _poi_grid(frame, places_layers)
     seen = set()
     rings, attrs, looks, mins = [], [], [], []
     for f in layers:
@@ -2380,6 +2480,9 @@ def tile_buildings(frame, x0, y0, x1, y1, layers, elev, water=None, part_layers=
                    "facade_material", "facade_color", "roof_material", "roof_color")}
             at.update(feature_id=str(key or ""), src_dataset=str(a["src_dataset"][i]) if "src_dataset" in a else "",
                       src_record=str(a["src_record"][i]) if "src_record" in a else "")
+            cls_ = str(at.get("class") or "").strip().lower()
+            if poi_index and (cls_ in _POI_QUERY_CLASSES or (not cls_ and _area2(ring) / 2 >= BIG_BOX_M2)):
+                at["poi_categories"] = _poi_categories_near_ring(ring, (x0, y0), poi_index)
             at = apply_building_override(at, load_building_overrides())
             hh_ = at.get("height")
             if hh_ is not None and np.isfinite(hh_) and 0 < hh_ < FLAT_FOOTPRINT_M and not parts_of.get(str(key)):
@@ -2409,6 +2512,7 @@ def tile_buildings(frame, x0, y0, x1, y1, layers, elev, water=None, part_layers=
                     p_rcol = pat.get("roof_color") or at.get("roof_color")
                     attrs.append({"class": at["class"], "height": ph, "num_floors": None,
                                   "roof_shape": p_rshape,
+                                  "poi_categories": at.get("poi_categories", ()),
                                   "building_height": top, "facade_material": at.get("facade_material"),
                                   "facade_color": p_fcol,
                                   "roof_material": at.get("roof_material"),
@@ -2951,10 +3055,15 @@ def road_tile_items(frame, tx, ty, md, ground, decks=None, skip=frozenset()):
     skip: building ids left out (gas station canopies)."""
     import roads
     x0, y0, x1, y1 = roads.tile_bbox(tx, ty)
+    keys = roads.cells_of_tile(frame, tx, ty, margin=0.0)
     cds = [md.cell(k, layers=("buildings", "building_parts", "roads", "infrastructure", "water"), kind="demand")
-           for k in roads.cells_of_tile(frame, tx, ty, margin=0.0)]
-    return tile_buildings(frame, x0, y0, x1, y1, [c.layers.get("buildings") for c in cds], ground,
+           for k in keys]
+    building_layers = [c.layers.get("buildings") for c in cds]
+    places_layers = ([md.cell(k, layers=("places",), kind="demand").layers.get("places") for k in keys]
+                     if _possible_poi_building(building_layers) else ())
+    return tile_buildings(frame, x0, y0, x1, y1, building_layers, ground,
                           part_layers=[c.layers.get("building_parts") for c in cds],
+                          places_layers=places_layers,
                           west_town=district_town(frame, tx, ty, md),
                           roads_xy=road_lines(frame, [c.layers.get("roads") for c in cds], x0, y0),
                           ways_xy=way_lines(frame, [c.layers.get("roads") for c in cds], x0, y0),
