@@ -431,7 +431,8 @@ class PruneTest(unittest.TestCase):
             for k in range(10):
                 p = os.path.join(root, "labels" if k % 2 else "", str(k), "1", "2.jpg")
                 os.makedirs(os.path.dirname(p), exist_ok=True)
-                open(p, "wb").write(b"x")
+                with open(p, "wb") as f:
+                    f.write(b"x")
                 os.utime(p, (1000 + k, 1000 + k))
                 paths.append(p)
             n = maptiles.prune(root, keep=4, gap_s=0)
