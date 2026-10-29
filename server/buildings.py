@@ -444,6 +444,30 @@ def tree_line_m(lat):
     return max(0.0, 3600.0 - 110.0 * max(0.0, abs(float(lat)) - 32.0))
 
 
+INDUSTRIAL_NAME_TERMS = ("warehouse", "factory", "manufactur", "industrial", "logistics depot", "distribution centre",
+                         "distribution center", "hangar")
+COMMERCIAL_POI_TERMS = ("retail", "supermarket", "grocery", "shopping_mall", "department_store", "convenience",
+                        "car_wash", "car_repair", "tyres", "pharmacy", "cafe", "restaurant", "fast_food")
+
+
+def is_industrial(attrs, area_m2=None):
+    """Explicit industrial building use, never inferred from a large footprint alone."""
+    cls = str(attrs.get("class") or "").strip().lower().replace(" ", "_")
+    if cls in INDUSTRIAL_CLASSES:
+        return True
+    name = str(attrs.get("name") or "").strip().lower()
+    return any(term in name for term in INDUSTRIAL_NAME_TERMS)
+
+
+def has_commercial_poi(attrs):
+    """Whether confidently categorized nearby Places data supports a shop/service facade."""
+    categories = attrs.get("poi_categories") or ()
+    if isinstance(categories, str):
+        categories = (categories,)
+    return any(any(term in str(category).strip().lower() for term in COMMERCIAL_POI_TERMS)
+               for category in categories)
+
+
 def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, dense=False, west_town=False,
          alpine=False):
     """The Spec of a footprint (local ring (n, 2) in metres, counter-clockwise) from its Overture attributes
@@ -472,8 +496,8 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
     row = cls in ROW_CLASSES or (not west_town and ((narrow and (neighbours >= 1 or dense)) or (
         dense and area < 260 and cls not in SHOP_CLASSES)))
     shed = (cls in SHED_CLASSES and not garage) or (area < 40 and not row)
-    shop = cls in SHOP_CLASSES
-    industrial = cls in INDUSTRIAL_CLASSES or (area > 2500 and cls in ("", "commercial"))
+    shop = cls in SHOP_CLASSES or has_commercial_poi(attrs)
+    industrial = is_industrial(attrs, area)
     industrial = industrial and not (garage or terminal)
 
     h = attrs.get("height")
@@ -543,13 +567,11 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
         elif cls in HOUSE_CLASSES or (area < 220 and not shop):
             nf = 1 if seed < 0.3 else 2
         elif industrial:
-            nf = 2 if area > 6000 else 1
+            nf = 1
         elif cls == "apartments":
             nf = 3 + int(seed * 3)
         elif town:
             nf = 1 if seed < 0.6 else 2                 # small towns: mostly single-storey shops and offices
-        elif area < 900:
-            nf = 2 + int(seed * 2)
         else:
             nf = 2 + int(seed * 3)
     roof_given = (attrs.get("roof_shape") or "").lower()

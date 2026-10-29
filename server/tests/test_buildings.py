@@ -115,6 +115,23 @@ class RegionStyleTest(unittest.TestCase):
 
 
 class PlanTest(unittest.TestCase):
+    def test_large_commercial_building_is_not_industrial_by_area(self):
+        s = bld.plan(rect(0, 0, 80, 60), {"class": "commercial"}, 0, 52.29, 104.28)
+        self.assertFalse(bld.is_industrial({"class": "commercial"}, area_m2=4800.0))
+        self.assertTrue(s.shop, "a large commercial building keeps its commercial use")
+        self.assertNotEqual(s.facade, bld.FACADE_TINTS[3], "industrial steel facade is not selected by footprint area")
+
+    def test_explicit_industrial_tags_and_names_win_over_commercial_poi(self):
+        self.assertTrue(bld.is_industrial({"class": "warehouse", "poi_categories": ["supermarket"]}, 5000.0))
+        self.assertTrue(bld.is_industrial({"class": "", "name": "Logistics depot"}, 500.0))
+        self.assertFalse(bld.is_industrial({"class": "commercial", "poi_categories": ["shopping_mall"]}, 9000.0))
+
+    def test_floor_fallback_does_not_scale_with_unknown_building_area(self):
+        small = bld.plan(rect(0, 0, 20, 20), {"class": ""}, lat=52.29, lon=104.28)
+        huge = bld.plan(rect(0, 0, 120, 100), {"class": ""}, lat=52.29, lon=104.28)
+        self.assertLessEqual(abs(small.floors - huge.floors), 1,
+                             "unknown footprint size must not be the main storey-count signal")
+
     def test_hut_above_the_tree_line_is_stone(self):
         # the user, 2026-10-14: Mount Whitney's stone summit shelter was a plain grey box
         self.assertAlmostEqual(bld.tree_line_m(36.6), 3600 - 110 * 4.6, places=6)
