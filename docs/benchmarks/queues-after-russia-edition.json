@@ -1,0 +1,709 @@
+{
+  "source_version": "1.7.0-beta",
+  "python": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "logical_cpus": 8,
+  "system": {
+    "physical_total_bytes": 17072508928,
+    "physical_available_bytes": 5312577536,
+    "physical_used_bytes": 11759931392,
+    "commit_used_bytes": 15222947840,
+    "error": null
+  },
+  "repeats": 3,
+  "limitations": [
+    "Synthetic offline blocked-reader workload, not an in-game drive.",
+    "RSS includes tracer overhead; shared pages may be counted more than once.",
+    "No FPS, game RAM, cache-hit performance or BeamMP play test measured."
+  ],
+  "scenarios": {
+    "mapdata": {
+      "runs": [
+        {
+          "rows": [
+            {
+              "requested_total": 0,
+              "warming": 0,
+              "newly_queued": 0,
+              "enqueue_seconds": 0.0050605999999788764,
+              "traced_bytes": 30565,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51449856,
+              "peak_rss_bytes": 51990528,
+              "private_commit_bytes": 303230976,
+              "page_faults": 13477,
+              "error": null
+            },
+            {
+              "requested_total": 1000,
+              "warming": 4,
+              "newly_queued": 4,
+              "enqueue_seconds": 0.000828199999887147,
+              "traced_bytes": 67023,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51564544,
+              "peak_rss_bytes": 51990528,
+              "private_commit_bytes": 303329280,
+              "page_faults": 13507,
+              "error": null
+            },
+            {
+              "requested_total": 5000,
+              "warming": 4,
+              "newly_queued": 0,
+              "enqueue_seconds": 4.380000018500141e-05,
+              "traced_bytes": 82603,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51834880,
+              "peak_rss_bytes": 51990528,
+              "private_commit_bytes": 303603712,
+              "page_faults": 13573,
+              "error": null
+            },
+            {
+              "requested_total": 10000,
+              "warming": 4,
+              "newly_queued": 0,
+              "enqueue_seconds": 3.680000008898787e-05,
+              "traced_bytes": 98831,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51847168,
+              "peak_rss_bytes": 51990528,
+              "private_commit_bytes": 303603712,
+              "page_faults": 13576,
+              "error": null
+            }
+          ],
+          "warming_after_close": 0,
+          "forced_prefetch_threads": 2
+        },
+        {
+          "rows": [
+            {
+              "requested_total": 0,
+              "warming": 0,
+              "newly_queued": 0,
+              "enqueue_seconds": 0.0048323000000891625,
+              "traced_bytes": 30565,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51343360,
+              "peak_rss_bytes": 51798016,
+              "private_commit_bytes": 303194112,
+              "page_faults": 13553,
+              "error": null
+            },
+            {
+              "requested_total": 1000,
+              "warming": 4,
+              "newly_queued": 4,
+              "enqueue_seconds": 0.0008367999998881714,
+              "traced_bytes": 67023,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51458048,
+              "peak_rss_bytes": 51798016,
+              "private_commit_bytes": 303292416,
+              "page_faults": 13583,
+              "error": null
+            },
+            {
+              "requested_total": 5000,
+              "warming": 4,
+              "newly_queued": 0,
+              "enqueue_seconds": 4.219999982524314e-05,
+              "traced_bytes": 82603,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51728384,
+              "peak_rss_bytes": 51798016,
+              "private_commit_bytes": 303566848,
+              "page_faults": 13649,
+              "error": null
+            },
+            {
+              "requested_total": 10000,
+              "warming": 4,
+              "newly_queued": 0,
+              "enqueue_seconds": 3.6100000215810724e-05,
+              "traced_bytes": 98831,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51740672,
+              "peak_rss_bytes": 51798016,
+              "private_commit_bytes": 303566848,
+              "page_faults": 13652,
+              "error": null
+            }
+          ],
+          "warming_after_close": 0,
+          "forced_prefetch_threads": 2
+        },
+        {
+          "rows": [
+            {
+              "requested_total": 0,
+              "warming": 0,
+              "newly_queued": 0,
+              "enqueue_seconds": 0.004394700000375451,
+              "traced_bytes": 30565,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51245056,
+              "peak_rss_bytes": 51974144,
+              "private_commit_bytes": 302886912,
+              "page_faults": 13427,
+              "error": null
+            },
+            {
+              "requested_total": 1000,
+              "warming": 4,
+              "newly_queued": 4,
+              "enqueue_seconds": 0.0009153999999398366,
+              "traced_bytes": 67023,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51359744,
+              "peak_rss_bytes": 51974144,
+              "private_commit_bytes": 302985216,
+              "page_faults": 13457,
+              "error": null
+            },
+            {
+              "requested_total": 5000,
+              "warming": 4,
+              "newly_queued": 0,
+              "enqueue_seconds": 3.90000000152213e-05,
+              "traced_bytes": 82603,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51630080,
+              "peak_rss_bytes": 51974144,
+              "private_commit_bytes": 303259648,
+              "page_faults": 13523,
+              "error": null
+            },
+            {
+              "requested_total": 10000,
+              "warming": 4,
+              "newly_queued": 0,
+              "enqueue_seconds": 3.530000003593159e-05,
+              "traced_bytes": 98783,
+              "traced_peak_bytes": 350463,
+              "rss_bytes": 51642368,
+              "peak_rss_bytes": 51974144,
+              "private_commit_bytes": 303259648,
+              "page_faults": 13526,
+              "error": null
+            }
+          ],
+          "warming_after_close": 0,
+          "forced_prefetch_threads": 2
+        }
+      ],
+      "median_final_traced_bytes": 98831,
+      "median_final_rss_bytes": 51740672,
+      "max_pending_or_warming": 4
+    },
+    "roads": {
+      "runs": [
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 45174784,
+              "peak_rss_bytes": 45174784,
+              "private_commit_bytes": 302379008,
+              "page_faults": 11259,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 4,
+              "traced_bytes": 192044,
+              "traced_peak_bytes": 468707,
+              "rss_bytes": 45961216,
+              "peak_rss_bytes": 45961216,
+              "private_commit_bytes": 302936064,
+              "page_faults": 11458,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 4,
+              "traced_bytes": 209944,
+              "traced_peak_bytes": 468707,
+              "rss_bytes": 45961216,
+              "peak_rss_bytes": 45961216,
+              "private_commit_bytes": 302936064,
+              "page_faults": 11458,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 4,
+              "traced_bytes": 226748,
+              "traced_peak_bytes": 468707,
+              "rss_bytes": 45998080,
+              "peak_rss_bytes": 45998080,
+              "private_commit_bytes": 302936064,
+              "page_faults": 11467,
+              "error": null
+            }
+          ],
+          "worker_limit": 4,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0012916999999106338
+        },
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 45277184,
+              "peak_rss_bytes": 45277184,
+              "private_commit_bytes": 302481408,
+              "page_faults": 11280,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 4,
+              "traced_bytes": 191951,
+              "traced_peak_bytes": 468662,
+              "rss_bytes": 46018560,
+              "peak_rss_bytes": 46018560,
+              "private_commit_bytes": 302985216,
+              "page_faults": 11467,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 4,
+              "traced_bytes": 209339,
+              "traced_peak_bytes": 468662,
+              "rss_bytes": 46018560,
+              "peak_rss_bytes": 46018560,
+              "private_commit_bytes": 302985216,
+              "page_faults": 11467,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 4,
+              "traced_bytes": 227167,
+              "traced_peak_bytes": 468662,
+              "rss_bytes": 46022656,
+              "peak_rss_bytes": 46022656,
+              "private_commit_bytes": 302985216,
+              "page_faults": 11468,
+              "error": null
+            }
+          ],
+          "worker_limit": 4,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0021430000001601
+        },
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 45236224,
+              "peak_rss_bytes": 45236224,
+              "private_commit_bytes": 302383104,
+              "page_faults": 11274,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 4,
+              "traced_bytes": 191951,
+              "traced_peak_bytes": 468662,
+              "rss_bytes": 46129152,
+              "peak_rss_bytes": 46129152,
+              "private_commit_bytes": 303251456,
+              "page_faults": 11499,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 4,
+              "traced_bytes": 209339,
+              "traced_peak_bytes": 468662,
+              "rss_bytes": 46129152,
+              "peak_rss_bytes": 46129152,
+              "private_commit_bytes": 303251456,
+              "page_faults": 11499,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 4,
+              "traced_bytes": 227167,
+              "traced_peak_bytes": 468662,
+              "rss_bytes": 46133248,
+              "peak_rss_bytes": 46133248,
+              "private_commit_bytes": 303251456,
+              "page_faults": 11500,
+              "error": null
+            }
+          ],
+          "worker_limit": 4,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.001534800000172254
+        }
+      ],
+      "median_final_traced_bytes": 227167,
+      "median_final_rss_bytes": 46022656,
+      "max_pending_or_warming": 4
+    },
+    "veg": {
+      "runs": [
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 45191168,
+              "peak_rss_bytes": 45191168,
+              "private_commit_bytes": 302321664,
+              "page_faults": 11263,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 2,
+              "traced_bytes": 170007,
+              "traced_peak_bytes": 468310,
+              "rss_bytes": 46014464,
+              "peak_rss_bytes": 46014464,
+              "private_commit_bytes": 303169536,
+              "page_faults": 11468,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 2,
+              "traced_bytes": 186755,
+              "traced_peak_bytes": 468310,
+              "rss_bytes": 46022656,
+              "peak_rss_bytes": 46022656,
+              "private_commit_bytes": 303169536,
+              "page_faults": 11470,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 2,
+              "traced_bytes": 203263,
+              "traced_peak_bytes": 468310,
+              "rss_bytes": 46026752,
+              "peak_rss_bytes": 46026752,
+              "private_commit_bytes": 303169536,
+              "page_faults": 11471,
+              "error": null
+            }
+          ],
+          "worker_limit": 2,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0009233000000676839
+        },
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 44843008,
+              "peak_rss_bytes": 44843008,
+              "private_commit_bytes": 301936640,
+              "page_faults": 11176,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 2,
+              "traced_bytes": 170055,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45633536,
+              "peak_rss_bytes": 45633536,
+              "private_commit_bytes": 302673920,
+              "page_faults": 11374,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 2,
+              "traced_bytes": 187059,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45641728,
+              "peak_rss_bytes": 45641728,
+              "private_commit_bytes": 302673920,
+              "page_faults": 11376,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 2,
+              "traced_bytes": 203311,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45764608,
+              "peak_rss_bytes": 45764608,
+              "private_commit_bytes": 302809088,
+              "page_faults": 11406,
+              "error": null
+            }
+          ],
+          "worker_limit": 2,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0008438999998361396
+        },
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 45080576,
+              "peak_rss_bytes": 45080576,
+              "private_commit_bytes": 302313472,
+              "page_faults": 11236,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 2,
+              "traced_bytes": 169754,
+              "traced_peak_bytes": 468265,
+              "rss_bytes": 45690880,
+              "peak_rss_bytes": 45690880,
+              "private_commit_bytes": 302673920,
+              "page_faults": 11390,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 2,
+              "traced_bytes": 187014,
+              "traced_peak_bytes": 468265,
+              "rss_bytes": 45699072,
+              "peak_rss_bytes": 45699072,
+              "private_commit_bytes": 302673920,
+              "page_faults": 11392,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 2,
+              "traced_bytes": 203426,
+              "traced_peak_bytes": 468265,
+              "rss_bytes": 45703168,
+              "peak_rss_bytes": 45703168,
+              "private_commit_bytes": 302673920,
+              "page_faults": 11393,
+              "error": null
+            }
+          ],
+          "worker_limit": 2,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0009107000000767584
+        }
+      ],
+      "median_final_traced_bytes": 203311,
+      "median_final_rss_bytes": 45764608,
+      "max_pending_or_warming": 2
+    },
+    "bldfar": {
+      "runs": [
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 45191168,
+              "peak_rss_bytes": 45191168,
+              "private_commit_bytes": 302411776,
+              "page_faults": 11266,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 2,
+              "traced_bytes": 169805,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45772800,
+              "peak_rss_bytes": 45772800,
+              "private_commit_bytes": 302727168,
+              "page_faults": 11413,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 2,
+              "traced_bytes": 186750,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45780992,
+              "peak_rss_bytes": 45780992,
+              "private_commit_bytes": 302727168,
+              "page_faults": 11415,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 2,
+              "traced_bytes": 203514,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45817856,
+              "peak_rss_bytes": 45817856,
+              "private_commit_bytes": 302727168,
+              "page_faults": 11424,
+              "error": null
+            }
+          ],
+          "worker_limit": 2,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0009196999999403488
+        },
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 45252608,
+              "peak_rss_bytes": 45252608,
+              "private_commit_bytes": 302489600,
+              "page_faults": 11343,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 2,
+              "traced_bytes": 170106,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45891584,
+              "peak_rss_bytes": 45891584,
+              "private_commit_bytes": 302841856,
+              "page_faults": 11503,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 2,
+              "traced_bytes": 187110,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45899776,
+              "peak_rss_bytes": 45899776,
+              "private_commit_bytes": 302841856,
+              "page_faults": 11505,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 2,
+              "traced_bytes": 203618,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45903872,
+              "peak_rss_bytes": 45903872,
+              "private_commit_bytes": 302841856,
+              "page_faults": 11506,
+              "error": null
+            }
+          ],
+          "worker_limit": 2,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0008483999999953085
+        },
+        {
+          "rows": [
+            {
+              "anchor_changes": 0,
+              "pending_records": 0,
+              "traced_bytes": 32,
+              "traced_peak_bytes": 112,
+              "rss_bytes": 44949504,
+              "peak_rss_bytes": 44949504,
+              "private_commit_bytes": 302120960,
+              "page_faults": 11206,
+              "error": null
+            },
+            {
+              "anchor_changes": 10,
+              "pending_records": 2,
+              "traced_bytes": 170106,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45568000,
+              "peak_rss_bytes": 45568000,
+              "private_commit_bytes": 302444544,
+              "page_faults": 11361,
+              "error": null
+            },
+            {
+              "anchor_changes": 100,
+              "pending_records": 2,
+              "traced_bytes": 187110,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45576192,
+              "peak_rss_bytes": 45576192,
+              "private_commit_bytes": 302444544,
+              "page_faults": 11363,
+              "error": null
+            },
+            {
+              "anchor_changes": 1000,
+              "pending_records": 2,
+              "traced_bytes": 203618,
+              "traced_peak_bytes": 468355,
+              "rss_bytes": 45580288,
+              "peak_rss_bytes": 45580288,
+              "private_commit_bytes": 302444544,
+              "page_faults": 11364,
+              "error": null
+            }
+          ],
+          "worker_limit": 2,
+          "latest_anchor": 1000,
+          "delivered_anchor_ids": [
+            1000
+          ],
+          "release_to_drained_seconds": 0.0008831000000100175
+        }
+      ],
+      "median_final_traced_bytes": 203618,
+      "median_final_rss_bytes": 45817856,
+      "max_pending_or_warming": 2
+    }
+  }
+}

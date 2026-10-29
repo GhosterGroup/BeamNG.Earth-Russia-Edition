@@ -58,21 +58,21 @@ modify `server/roads.py`, `server/vegetation.py`, `server/mapdata.py`.
 
 Files: new `server/memstats.py`, `tools/memory_monitor.py`, tests; modify worker RSS and earthd logging.
 
-- [ ] Write failing tests for current-process RSS, child-tree aggregation, PID/access failure handling and JSON CLI output.
-- [ ] Implement Windows Toolhelp32 + GetProcessMemoryInfo + GlobalMemoryStatusEx, Linux /proc fallback.
-- [ ] Report server tree and game separately; RSS sums explicitly include shared-page double counting; private commit separate.
-- [ ] Expose periodic opt-in diagnostics with process/queue/tile/cache counts; monitor accepts explicit server/game PIDs.
-- [ ] Run live OS sampler plus unit/integration/protocol regressions; commit.
+- [x] Write failing tests for current-process RSS, child-tree aggregation, PID/access failure handling and JSON CLI output.
+- [x] Implement Windows Toolhelp32 + GetProcessMemoryInfo + GlobalMemoryStatusEx, Linux /proc fallback.
+- [x] Report server tree and game separately; RSS sums explicitly include shared-page double counting; private commit separate.
+- [x] Expose periodic opt-in diagnostics with process/queue/tile/cache counts; monitor accepts explicit server/game PIDs.
+- [x] Run live OS sampler plus unit/integration/protocol regressions; commit.
 
 ## Task 3: Reproducible evidence and manual game checks
 
 Files: benchmark tool, `docs/RUSSIA_EDITION_MEMORY.md`, portable JSON measurements and test results.
 
-- [ ] Run the same isolated benchmark against baseline and modified source, with worker limits held constant.
-- [ ] Record hardware, versions, scenario, tracemalloc, RSS, peak, pending jobs and limitations.
-- [ ] Run available full suite with bounded parallelism/timeouts; report all skips/failures.
-- [ ] Document Irkutsk/Markova/Novosibirsk/Yakutsk drives, cold/warm disk cache, 20-minute run, teleport and BeamMP checks.
-- [ ] Review changes, run diff checks, commit evidence; show branch/status/main refs.
+- [x] Run the same isolated benchmark against baseline and modified source, with worker limits held constant.
+- [x] Record hardware, versions, scenario, tracemalloc, RSS, peak, pending jobs and limitations.
+- [x] Run available full suite with bounded parallelism/timeouts; report all skips/failures.
+- [x] Document memory/FPS, cold/warm disk cache, 20-minute route, teleport, slow network and BeamMP checks; game execution remains unverified.
+- [x] Review changes, run diff checks, commit evidence; show branch/status/main refs.
 
 ## Baseline evidence
 
@@ -82,3 +82,8 @@ Blocked optional map prefetch (forced 2 threads): 10,000 jobs, 21,136,465 traced
 6,609 stale `_warming` entries after close. This prefetch is disabled by default on <=8 CPU threads.
 Blocked vegetation tracker (2 workers), 1,000 anchor changes: 1,998 pending executor records, 6,835,586 traced bytes.
 These are synthetic reproductions, not proof of in-game RAM/FPS improvement or a general leak fix.
+
+
+## Results (2026-10-29)
+
+See docs/benchmarks/Russia-Edition-stage1-memory-report.md and adjacent raw JSON/manual checklist. Focused new tests 18/18 pass; server imports pass; test_protocol_agreement 32/32 passes when given a 420-second module budget. The broad 114-module run finished with 105 OK; 3 Windows platform failures reproduce on baseline and 6 modules exceeded 120 seconds (protocol later passed in isolation). No game-world/BeamMP drive was measured. Stage-1 implementation is saved in commits before beginning the upstream 1.7.1 integration.
