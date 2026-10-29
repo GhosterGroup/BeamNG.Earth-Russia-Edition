@@ -4634,6 +4634,10 @@ async def main_async(args):
             for c in list(server.connections):     # a host that came back while nobody posed
                 c.refresh_status()
     ticker = asyncio.create_task(net_log())
+    memory_task = None
+    if os.environ.get("BNGE_MEMORY_DIAGNOSTICS", "").lower() in ("1", "true", "on"):
+        import diagnostics
+        memory_task = asyncio.create_task(diagnostics.log_loop(server, log))
 
     # Debug: event-loop stalls (every message the game sends waits for them). The loop beats; a thread
     # logs the main thread's stack when a beat is late, so the stall names its cause.
@@ -4713,6 +4717,8 @@ async def main_async(args):
             await srv.serve_forever()
     finally:
         ticker.cancel()
+        if memory_task is not None:
+            memory_task.cancel()
         lagger.cancel()
         sweeper.cancel()
         if map_srv is not None:

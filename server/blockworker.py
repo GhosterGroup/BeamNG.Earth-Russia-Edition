@@ -116,11 +116,9 @@ def load_airports(cache_dir, dem):
 
 
 def _rss_mb():
-    try:
-        with open("/proc/self/statm") as f:
-            return int(f.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") / 1e6
-    except (OSError, ValueError):
-        return 0.0
+    import memstats
+    rss = memstats.process_memory(os.getpid())["rss_bytes"]
+    return rss / 1e6 if rss is not None else float("nan")
 
 
 def _trace_memory(every_s=60.0, top=10):
