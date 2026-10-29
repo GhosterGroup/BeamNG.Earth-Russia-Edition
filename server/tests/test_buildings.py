@@ -132,6 +132,24 @@ class PlanTest(unittest.TestCase):
         self.assertLessEqual(abs(small.floors - huge.floors), 1,
                              "unknown footprint size must not be the main storey-count signal")
 
+    def test_building_override_uses_stable_feature_id_and_validated_values(self):
+        overrides = {"gers:feature-123": {"height": 21.0, "num_floors": 7}}
+        got = bld.apply_building_override({"feature_id": "feature-123", "height": 10.0}, overrides)
+        self.assertEqual(got["height"], 21.0)
+        self.assertEqual(got["num_floors"], 7)
+        self.assertEqual(bld.apply_building_override({"feature_id": "other"}, overrides), {"feature_id": "other"})
+        source = bld.apply_building_override({"src_dataset": "OpenStreetMap", "src_record": "42"},
+                                             {"source:OpenStreetMap:42": {"height": 9.0}})
+        self.assertEqual(source["height"], 9.0)
+
+    def test_building_override_rejects_invalid_fields(self):
+        self.assertEqual(bld.validate_building_overrides({
+            "schema": 1,
+            "buildings": {"gers:ok": {"height": 15.0, "num_floors": 5},
+                          "gers:bad": {"height": -4.0, "class": "warehouse"},
+                          "": {"height": 20.0}},
+        }), {"gers:ok": {"height": 15.0, "num_floors": 5}})
+
     def test_hut_above_the_tree_line_is_stone(self):
         # the user, 2026-10-14: Mount Whitney's stone summit shelter was a plain grey box
         self.assertAlmostEqual(bld.tree_line_m(36.6), 3600 - 110 * 4.6, places=6)

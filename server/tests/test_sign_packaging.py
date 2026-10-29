@@ -62,6 +62,14 @@ class PackagedExitSignsTest(unittest.TestCase):
 
 
 class PackagedMileMarkersTest(unittest.TestCase):
+    def test_building_overrides_are_bundled_for_server(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = frozen_data(tmp)
+            path = bundle / 'building_overrides.json'
+            self.assertTrue(path.is_file())
+            self.assertEqual(json.loads(path.read_text(encoding='utf-8')),
+                             {"schema": 1, "buildings": {}})
+
     def test_state_styles_and_client_assets_are_packaged(self):
         with tempfile.TemporaryDirectory() as tmp:
             bundle = frozen_data(tmp)

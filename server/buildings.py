@@ -13,9 +13,11 @@ on red brick), m_highrise_metal's are office curtain wall and a shopfront; each 
 its windows a whole number of bays along every wall (no window cut at a corner). Pure functions of the
 footprints and a ground-height function; no game state.
 """
+import json
 import os
 import hashlib
 import math
+from functools import lru_cache
 
 import numpy as np
 
@@ -466,6 +468,50 @@ def has_commercial_poi(attrs):
         categories = (categories,)
     return any(any(term in str(category).strip().lower() for term in COMMERCIAL_POI_TERMS)
                for category in categories)
+
+
+def validate_building_overrides(doc):
+    """Keep only bounded, explicit height/floor corrections keyed by a stable source ID."""
+    if not isinstance(doc, dict) or doc.get("schema") != 1 or not isinstance(doc.get("buildings"), dict):
+        return {}
+    valid = {}
+    for key, row in doc["buildings"].items():
+        if not isinstance(key, str) or not key.strip() or not isinstance(row, dict):
+            continue
+        item = {}
+        height = row.get("height")
+        if isinstance(height, (int, float)) and not isinstance(height, bool) and np.isfinite(height) and 2.0 <= height <= 500.0:
+            item["height"] = float(height)
+        floors = row.get("num_floors")
+        if isinstance(floors, int) and not isinstance(floors, bool) and 1 <= floors <= 200:
+            item["num_floors"] = floors
+        if item:
+            valid[key.strip()] = item
+    return valid
+
+
+@lru_cache(maxsize=1)
+def load_building_overrides():
+    """Load optional manual corrections once per server process; restart after editing the file."""
+    path = os.path.join(os.path.dirname(__file__), "building_overrides.json")
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            return validate_building_overrides(json.load(stream))
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def apply_building_override(attrs, overrides):
+    """Apply an explicit correction by GERS ID, then Overture source dataset + record ID."""
+    fid = str(attrs.get("feature_id") or "").strip()
+    dataset = str(attrs.get("src_dataset") or "").strip()
+    record = str(attrs.get("src_record") or "").strip()
+    keys = ([f"gers:{fid}"] if fid else []) + ([f"source:{dataset}:{record}"] if dataset and record else [])
+    for key in keys:
+        correction = overrides.get(key)
+        if correction:
+            return {**attrs, **correction}
+    return attrs
 
 
 def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, dense=False, west_town=False,
@@ -2330,6 +2376,9 @@ def tile_buildings(frame, x0, y0, x1, y1, layers, elev, water=None, part_layers=
             at = {k: (a[k][i] if k in a else None) for k in
                   ("class", "height", "num_floors", "min_height", "roof_shape", "roof_height", "name",
                    "facade_material", "facade_color", "roof_material", "roof_color")}
+            at.update(feature_id=str(key or ""), src_dataset=str(a["src_dataset"][i]) if "src_dataset" in a else "",
+                      src_record=str(a["src_record"][i]) if "src_record" in a else "")
+            at = apply_building_override(at, load_building_overrides())
             hh_ = at.get("height")
             if hh_ is not None and np.isfinite(hh_) and 0 < hh_ < FLAT_FOOTPRINT_M and not parts_of.get(str(key)):
                 continue                # a mapped area, not a building (the Golden Gate toll plaza's 0.01 m footprint
