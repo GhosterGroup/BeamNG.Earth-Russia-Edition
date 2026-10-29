@@ -258,7 +258,8 @@ OLD_TOWER_GLASS = 0.65      # ... (Midtown's pre-war skyscrapers are stone)
 MIDRISE_GLASS_OFFICE = 0.45 # offices / hotels of 7+ floors: this share glass (modern), the rest masonry
 TOWER_SHOP_FLOORS = 6       # a building this tall in a dense core: a shop / lobby ground floor whatever its class
 SHOP_CLASSES = {"retail", "commercial", "supermarket", "kiosk", "office", "hotel", "civic", "restaurant", "cafe",
-                "fast_food", "car_wash", "car_repair", "tyre_shop", "pharmacy", "convenience"}
+                "fast_food", "car_wash", "car_repair", "auto_repair", "tyre_shop", "tire_shop", "pharmacy",
+                "convenience", "mall", "shopping_mall"}
 HOUSE_CLASSES = {"house", "detached", "semidetached_house", "bungalow", "residential", "farm", "static_caravan",
                  "cabin", "dormitory"}
 ROW_CLASSES = {"terrace"}
@@ -324,7 +325,7 @@ def oriented_box(p):
 class Spec:
     """What is built for one footprint (decided by plan())."""
     __slots__ = ("ring", "floors", "floor_h", "height", "roof", "roof_mat", "facade", "band", "shop", "plain", "min_h", "wall", "door", "windows", "front", "steeple", "stoop",
-                 "sign", "porch", "cls", "seed", "deck", "pitch", "portal", "gring")
+                 "sign", "porch", "cls", "seed", "deck", "pitch", "portal", "gring", "wash", "bays")
 
     def __init__(self, **kw):
         for k in self.__slots__:
@@ -629,6 +630,17 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
     _, _, hl, hw = oriented_box(ring)
     box_fill = area / max(4 * hl * hw, 1e-6)
     cls = (attrs.get("class") or "").lower()
+    poi_categories = attrs.get("poi_categories") or ()
+    if isinstance(poi_categories, str):
+        poi_categories = (poi_categories,)
+    poi_categories = {str(category).strip().lower() for category in poi_categories}
+    wash = cls == "car_wash" or "car_wash" in poi_categories
+    bays = wash or cls in {"car_repair", "auto_repair", "tyre_shop", "tire_shop"} \
+        or bool(poi_categories.intersection({"car_repair", "auto_repair", "tyre", "tire"}))
+    if wash and not cls:
+        cls = "car_wash"
+    elif bays and not cls:
+        cls = "car_repair"
     name = str(attrs.get("name") or "").lower()
     terminal = any(w in name for w in ("terminal", "concourse"))
     church = cls in CHURCH_CLASSES or any(w in name for w in ("church", "chapel", "cathedral"))
@@ -640,10 +652,10 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
         "garage" in name and area > 800) or (bool(attrs.get("garage")) and cls in GARAGE_TAG_CLASSES)
     narrow = hw < 4.2 and hl > 2.2 * hw                 # a row house: ~4-8 m wide, deep
     # in a dense core small buildings are row houses even where the footprints leave gaps (Fells Point)
-    row = cls in ROW_CLASSES or (not west_town and ((narrow and (neighbours >= 1 or dense)) or (
-        dense and area < 260 and cls not in SHOP_CLASSES)))
-    shed = (cls in SHED_CLASSES and not garage) or (area < 40 and not row)
-    shop = cls in SHOP_CLASSES or has_commercial_poi(attrs)
+    row = not bays and (cls in ROW_CLASSES or (not west_town and ((narrow and (neighbours >= 1 or dense)) or (
+        dense and area < 260 and cls not in SHOP_CLASSES))))
+    shed = not bays and ((cls in SHED_CLASSES and not garage) or (area < 40 and not row))
+    shop = not bays and (cls in SHOP_CLASSES or has_commercial_poi(attrs))
     industrial = is_industrial(attrs, area)
     industrial = industrial and not (garage or terminal)
 
@@ -695,7 +707,7 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
                     seed=seed, min_h=0.0,
                     wall=None, windows=False, steeple=False, porch=False, cls=cls, deck=False, pitch=None)
     floor_h = FLOOR_M
-    if industrial:
+    if industrial or bays:
         floor_h = 4.5
     if church:
         floor_h = 7.5
@@ -704,7 +716,9 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
     if barn:
         floor_h = 5.5 if area >= 150 else 3.5          # one tall storey; the gable above it
     if h is None and nf is None:
-        if shed:
+        if bays:
+            nf = 1
+        elif shed:
             nf = 1
         elif row:
             nf = 2 if seed < 0.25 else (3 if seed < 0.85 else 4)
@@ -729,7 +743,7 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
     elif roof_given in ("skillion", "dome", "onion", "round", "saltbox"):
         roof = "gabled"
     else:
-        detached_house = (cls in HOUSE_CLASSES or (area < 260 and not shop)) and not industrial and not row
+        detached_house = (cls in HOUSE_CLASSES or (area < 260 and not shop and not bays)) and not industrial and not row
         if church and neighbours == 0:
             roof = "gabled"
         elif neighbours >= 1:
@@ -815,7 +829,7 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
                     band = (BAND_SASH, BAND_TALL, BAND_PANEL)[int(seed * 104729) % 3]
         plain = False
     wall = None
-    house = (cls in HOUSE_CLASSES or (area < 260 and not shop and not industrial)) and not row and not shed \
+    house = (cls in HOUSE_CLASSES or (area < 260 and not shop and not industrial and not bays)) and not row and not shed \
         and neighbours == 0 and area < 300         # a long "residential" block is not a house (Fells Point)
     if house and band is not BAND_BRICK and nf <= 3:
         # detached houses: siding in the East and South, stucco in the West; windows laid over the wall
@@ -897,6 +911,9 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
         kind = METALWALL if industrial else PANEL
         wall = f"{kind}|{int(_hash01(seed, 'wc') * len(WALL_TINTS[kind]))}"
         facade, windows = wall, False
+    if bays:
+        wall = f"{PANEL}|{int(_hash01(seed, 'wash panel') * len(WALL_TINTS[PANEL]))}"
+        facade, band, plain, windows = wall, BAND_PANEL, False, False
     rmat = str(attrs.get("roof_material") or "").lower()
     if rmat in ("metal", "tin", "steel", "zinc", "corrugated_iron", "sheet"):
         roof_mat = f"{ROOF_METAL}|{int(_hash01(seed, 'roof') * len(ROOF_TINTS[ROOF_METAL]))}"
@@ -940,7 +957,7 @@ def plan(ring, attrs, neighbours=0, lat=None, lon=None, look=None, town=False, d
     return Spec(ring=ring, floors=nf, floor_h=floor_h, height=h, roof=roof, roof_mat=roof_mat, facade=facade,
                 band=band, shop=shop and not shed and nf >= 1, plain=plain, seed=seed, min_h=0.0, wall=wall,
                 windows=windows, steeple=church and area < 2500, porch=porch, cls=cls,
-                deck=garage and roof == "flat", pitch=style.pitch)
+                deck=garage and roof == "flat", pitch=style.pitch, wash=wash, bays=bays)
 
 
 class Mesh:
@@ -1048,6 +1065,55 @@ def _walls(m, spec, ring, z0, z_eave, mat_idx, lite=False):
     if mid:
         m.quads(P, UV, mid, [mat_idx[spec.facade], mat_idx[SHOP] if (spec.shop or spec.wall) else None,
                              mat_idx["bne_bld_fac_white"] if spec.wall else None])
+
+
+def _wash_bays(m, spec, ring, z_floor, z_eave, mat_idx, lite=False):
+    """Closed, shared-material service bay panels, batched into the building mesh."""
+    if lite or not getattr(spec, "bays", False) or len(ring) < 3:
+        return
+    ring = np.asarray(ring, np.float64)
+    edge = spec.front
+    lengths = np.hypot(*(np.roll(ring, -1, axis=0) - ring).T)
+    if edge is None or not 0 <= int(edge) < len(ring):
+        edge = int(np.argmax(lengths))
+    edge = int(edge)
+    a, b = ring[edge], ring[(edge + 1) % len(ring)]
+    length = float(lengths[edge])
+    if length < 5.0:
+        return
+    direction = (b - a) / length
+    outward = np.array([direction[1], -direction[0]])
+    count = max(1, min(4, int(length // 5.5)))
+    gap, margin = 0.9, min(1.0, length * 0.1)
+    width = min(3.6, (length - 2 * margin - (count - 1) * gap) / count)
+    if width < 1.5:
+        return
+    height = min(2.8, max(1.8, (z_eave - z_floor) * 0.66))
+    z1, z2 = z_floor + 0.12, min(z_eave - 0.45, z_floor + height)
+    if z2 <= z1 + 0.5:
+        return
+    offset = outward * 0.08
+    panel = mat_idx.get(spec.wall, mat_idx[PANEL])
+    frame = mat_idx["bne_bld_fac_white"]
+    uv = ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))
+    for k in range(count):
+        centre = margin + width / 2 + k * (width + gap)
+        p0, p1 = a + direction * (centre - width / 2) + offset, a + direction * (centre + width / 2) + offset
+        m.quad((p0[0], p0[1], z1), (p1[0], p1[1], z1), (p1[0], p1[1], z2), (p0[0], p0[1], z2), *uv, panel)
+        bar = 0.07
+        for t0, t1, h0, h1 in ((centre - width / 2, centre - width / 2 + bar, z1, z2),
+                               (centre + width / 2 - bar, centre + width / 2, z1, z2),
+                               (centre - width / 2, centre + width / 2, z1, z1 + bar),
+                               (centre - width / 2, centre + width / 2, z2 - bar, z2)):
+            q0, q1 = a + direction * t0 + offset * 1.1, a + direction * t1 + offset * 1.1
+            m.quad((q0[0], q0[1], h0), (q1[0], q1[1], h0), (q1[0], q1[1], h1), (q0[0], q0[1], h1),
+                   *uv, frame)
+        for slat in range(1, 5):
+            z = z1 + (z2 - z1) * slat / 5
+            q0 = a + direction * (centre - width / 2 + bar) + offset * 1.2
+            q1 = a + direction * (centre + width / 2 - bar) + offset * 1.2
+            m.quad((q0[0], q0[1], z), (q1[0], q1[1], z), (q1[0], q1[1], z + 0.025), (q0[0], q0[1], z + 0.025),
+                   *uv, frame)
 
 
 PLAIN_STRIP = 0.3           # of a bay: the plain wall between two windows of a sheet's band (centred on a bay edge)
@@ -1657,6 +1723,8 @@ def build(specs_and_ground, lite=False):
         z0 = gmin - (SKIRT_LITE_M if lite else SKIRT_M) if mh <= 0.5 else base_z(spec, gmin, gmax) + mh
         z_eave = base_z(spec, gmin, gmax) + mh + spec.height
         _walls(m, spec, ring, z0, z_eave, mat_idx, lite)
+        if spec.bays:
+            _wash_bays(m, spec, ring, z_eave - spec.height, z_eave, mat_idx, lite)
         if mh > 0.5:                                  # a part standing on another / over a street: its underside
             m.poly([(p[0], p[1], z0) for p in ring[::-1]], [(0.002, 0.995)] * len(ring), mat_idx[spec.facade])
         _roof(m, spec, ring, z_eave, mat_idx)
@@ -2902,6 +2970,8 @@ def doors(items, lines, x0, y0, drives=None):
         _, a, d, Le, out, edge, on_main, kseg = best
         if spec.windows is False:
             spec.front = edge                   # a big box: its storefront faces the road
+            if spec.bays:
+                continue                        # generic closed service bays: no invented shop/brand sign
             if storefront:
                 spec.sign = edge
             rows.extend(_sign_in_open(_wall_sign(spec, a, d, Le, out, gmax), spec, d, out, others))

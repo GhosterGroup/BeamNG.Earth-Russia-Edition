@@ -121,6 +121,31 @@ class PlanTest(unittest.TestCase):
         self.assertTrue(s.shop, "a large commercial building keeps its commercial use")
         self.assertNotEqual(s.facade, bld.FACADE_TINTS[3], "industrial steel facade is not selected by footprint area")
 
+    def test_car_wash_gets_single_storey_closed_bay_style(self):
+        s = bld.plan(rect(0, 0, 18, 8), {"class": "car_wash"}, lat=52.29, lon=104.28)
+        self.assertTrue(s.wash)
+        self.assertEqual(s.floors, 1)
+        self.assertFalse(s.windows)
+        m = bld.Mesh()
+        mat_idx = {bld.PANEL: (0, (0.8, 0.8, 0.8)), "bne_bld_fac_white": (1, (1.0, 1.0, 1.0))}
+        bld._wash_bays(m, s, s.ring, 0.0, s.height, mat_idx)
+        self.assertGreater(m.n, 0, "the shared building mesh contains closed wash-bay doors")
+
+    def test_car_wash_poi_styles_unclassified_service_building(self):
+        s = bld.plan(rect(0, 0, 18, 8), {"class": "", "poi_categories": ["car_wash"]})
+        self.assertTrue(s.wash)
+        self.assertTrue(s.bays)
+        self.assertEqual(s.floors, 1)
+
+    def test_auto_repair_uses_closed_service_bays_without_fake_sign(self):
+        s = bld.plan(rect(0, 0, 18, 8), {"class": "car_repair"})
+        self.assertTrue(s.bays)
+        self.assertFalse(s.wash)
+        self.assertFalse(s.windows)
+        self.assertEqual(s.floors, 1)
+        road = (np.array([[-10.0, -10.0], [30.0, -10.0]]), 5.0, "residential", False)
+        self.assertEqual(bld.doors([(s, 0.0, 0.0)], [road], 0.0, 0.0), [])
+
     def test_explicit_industrial_tags_and_names_win_over_commercial_poi(self):
         self.assertTrue(bld.is_industrial({"class": "warehouse", "poi_categories": ["supermarket"]}, 5000.0))
         self.assertTrue(bld.is_industrial({"class": "", "name": "Logistics depot"}, 500.0))

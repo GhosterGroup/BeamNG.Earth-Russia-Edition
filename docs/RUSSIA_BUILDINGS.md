@@ -34,3 +34,6 @@ Tiles with mapped commercial building candidates may also load the optional Over
 high-confidence categories within the footprint or 12 m of its outline inform the existing storefront style. Generic
 POI categories and brand names are not used to fabricate shop signs. The Places layer is not requested on unrelated
 residential tiles.
+Car washes and auto/tire repair buildings use closed, low-poly bay panels in the shared building mesh; they do not add
+one scene object per bay or generate invented shop/brand signs. Other commercial POIs use the existing generic
+storefront architecture until more service-specific mapped geometry is available.
