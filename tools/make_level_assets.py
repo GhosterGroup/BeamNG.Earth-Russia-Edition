@@ -159,7 +159,9 @@ for i, args in enumerate((
         ("bngEarthGroundMud", "MUD", "mud/mud/t_mud", 1, "soil/macro_clumply/t_macro_clumpy", 32),
         ("bngEarthGroundCobble", "COBBLESTONE", "asphalt/t_asphalt_02/t_asphalt_02", 1, "asphalt/macro_asphalt/t_macro_asphalt", 16, 0.3),
         # mown town yards (server/surface.py LAWN): the grass detail, finer grain
-        ("bngEarthGroundLawn", "GRASS", "grass/t_grass_01/t_grass_01", 1, "grass/t_macro_grass/t_macro_grass", 32, 0.2))):
+        ("bngEarthGroundLawn", "GRASS", "grass/t_grass_01/t_grass_01", 1, "grass/t_macro_grass/t_macro_grass", 32, 0.2),
+        # glazed winter road patches: real ICE ground model; photo tint gives them a blue-grey surface at range
+        ("bngEarthGroundIce", "ICE", "asphalt/t_asphalt_02/t_asphalt_02", 2, "asphalt/macro_asphalt/t_macro_asphalt", 32, 0.08))):
     name, gm, detail, dsize, macro, msize, *st = args
     SURFACES.update(surface(name, gm, f"3b0f6f0e-8f5e-4a51-9a59-0b8e2f6a1c{30 + i}", detail, dsize, macro, msize, *st))
 

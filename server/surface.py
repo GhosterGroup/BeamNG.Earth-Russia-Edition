@@ -53,9 +53,10 @@ MATERIALS = (
     ("bngEarthGroundMud", "MUD"),
     ("bngEarthGroundCobble", "COBBLESTONE"),      # roads with paving stones / setts (roads.py "cobble")
     ("bngEarthGroundLawn", "GRASS"),              # mown yards in towns (short grass only, groundcover.lua)
+    ("bngEarthGroundIce", "ICE"),                 # deterministic slick patches on paved Siberian winter roads
     ("beamngEarthDirt", "DIRT"),
 )
-ASPHALT, GRASS, DUSTY, LOOSE, ROCK, SNOW, MUD, COBBLE, LAWN, DIRT = range(len(MATERIALS))
+ASPHALT, GRASS, DUSTY, LOOSE, ROCK, SNOW, MUD, COBBLE, LAWN, ICE, DIRT = range(len(MATERIALS))
 # WorldCover class -> material (§5.4 of the world-data research). Built-up land is the plain dirt layer
 # (2026-10-14): its yards, lawns and lots took the asphalt layer's grey detail and macro textures, which
 # washed whole towns pale grey in the street photos (Moab, Frederick); the roads are painted asphalt anyway
@@ -142,9 +143,10 @@ def classify(classes, u, square, lat=None, lon=None, *, winter=False):
 
 def _hash01(ix, iy, seed):
     """Deterministic pseudo-random in [-1, 1] per integer lattice point (uint64 arithmetic)."""
+    seed_hash = np.uint64((int(seed) * 0x165667B19E3779F9) & 0xFFFFFFFFFFFFFFFF)
     h = (ix.astype(np.int64).astype(np.uint64) * np.uint64(0x9E3779B185EBCA87)
          ^ iy.astype(np.int64).astype(np.uint64) * np.uint64(0xC2B2AE3D27D4EB4F)
-         ^ np.uint64(seed) * np.uint64(0x165667B19E3779F9))
+         ^ seed_hash)
     h ^= h >> np.uint64(29)
     h *= np.uint64(0xBF58476D1CE4E5B9)
     h ^= h >> np.uint64(32)
@@ -235,6 +237,16 @@ def road_material(kind, winter=False):
     if winter and kind in ("dirt", "gravel"):
         return SNOW
     return ROAD_MATERIAL[kind]
+
+
+def road_ice_mask(lat, lon):
+    """World-fixed deterministic slick patches, independent of block boundaries and client state."""
+    lat, lon = np.asarray(lat, np.float64), np.asarray(lon, np.float64)
+    xm = lon * (M_PER_DEG * np.cos(np.radians(lat)))
+    ym = lat * 110540.0
+    coarse = _value_noise(xm / 36.0, ym / 36.0, 41)
+    fine = _value_noise(xm / 11.0, ym / 11.0, 42)
+    return (0.72 * coarse + 0.28 * fine) > 0.18
 
 
 def grid_affine(lat, lon):
@@ -400,9 +412,14 @@ def paint_roads(idx, lat, lon, feats_list, square, urban_fn=None, widths=None, e
         v |= corner_verge
     out[v & np.isin(out, VERGE_FROM)] = VERGE
     for k in ROAD_ORDER:
-        out[mask(segs[k])] = road_material(k, winter)
+        road = mask(segs[k])
+        out[road] = road_material(k, winter)
+        if winter and k == "paved" and road.any():
+            out[road] = np.where(road_ice_mask(lat[road], lon[road]), ICE, out[road])
     if corner is not None:
         out[corner] = road_material("paved", winter)
+        if winter and corner.any():
+            out[corner] = np.where(road_ice_mask(lat[corner], lon[corner]), ICE, out[corner])
     return out
 
 
@@ -977,29 +994,35 @@ def write_masks(idx, out_dir, stem):
     return names
 
 
-def winterize_photo(rgb, snow_mask_path):
-    """Whiten only terrain samples assigned SNOW, preserving their image detail and all other pixels."""
-    try:
-        with Image.open(snow_mask_path) as im:
-            mask = np.asarray(im.convert("L").resize((rgb.shape[1], rgb.shape[0]), Image.Resampling.NEAREST)) > 0
-    except (OSError, ValueError):
-        return rgb, 0
-    if not mask.any():
-        return rgb, 0
+def winterize_photo(rgb, snow_mask_path, ice_mask_path=None):
+    """Tint only SNOW and ICE terrain samples, preserving satellite detail elsewhere."""
     out = np.asarray(rgb, np.uint8).copy()
-    tint = np.array([224.0, 230.0, 237.0], np.float32)
-    # Bound temporary arrays to 128 rows (about 1 MB at 2048 px), even for a fully snow-covered block.
-    for y in range(0, out.shape[0], 128):
-        rows = slice(y, min(y + 128, out.shape[0]))
-        active = mask[rows]
-        if not active.any():
+    changed = 0
+    for path, tint, amount in ((snow_mask_path, (224.0, 230.0, 237.0), 0.78),
+                               (ice_mask_path, (163.0, 190.0, 205.0), 0.58)):
+        if not path:
             continue
-        pixels = out[rows][active].astype(np.float32)
-        lum = pixels @ np.array([0.299, 0.587, 0.114], np.float32)
-        # Lift and desaturate satellite colours into snow while retaining shading and texture.
-        snow = 0.22 * lum[:, None] + 0.78 * tint
-        out[rows][active] = np.clip(np.rint(snow), 0, 255).astype(np.uint8)
-    return out, int(mask.sum())
+        try:
+            with Image.open(path) as im:
+                mask = np.asarray(im.convert("L").resize((out.shape[1], out.shape[0]),
+                                                           Image.Resampling.NEAREST)) > 0
+        except (OSError, ValueError):
+            continue
+        if not mask.any():
+            continue
+        tint = np.asarray(tint, np.float32)
+        # Bound temporary arrays to 128 rows (about 1 MB at 2048 px), even for a fully covered block.
+        for y in range(0, out.shape[0], 128):
+            rows = slice(y, min(y + 128, out.shape[0]))
+            active = mask[rows]
+            if not active.any():
+                continue
+            pixels = out[rows][active].astype(np.float32)
+            lum = pixels @ np.array([0.299, 0.587, 0.114], np.float32)
+            graded = (1.0 - amount) * lum[:, None] + amount * tint
+            out[rows][active] = np.clip(np.rint(graded), 0, 255).astype(np.uint8)
+        changed += int(mask.sum())
+    return out, changed
 
 
 SNOW_BRIGHT = 165           # mean of r, g, b of the ground photo (0-255) from which a snow candidate stays snow, ...

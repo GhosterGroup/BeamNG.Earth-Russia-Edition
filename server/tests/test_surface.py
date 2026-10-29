@@ -3,6 +3,7 @@ material table, the steep-slope rule, the masks (one per material, every sample 
 rows as the heightmap's), the cached land cover that never waits for the network, and the server
 writing the masks next to the heightmap and naming them in the terrain message."""
 import os
+import json
 import sys
 import tempfile
 import unittest
@@ -54,6 +55,36 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(sf.road_material("paved", winter=True), sf.ASPHALT)
         self.assertEqual(sf.road_material("cobble", winter=True), sf.COBBLE)
         self.assertEqual(sf.road_material("dirt", winter=False), sf.DIRT)
+
+    def test_winter_ice_patches_are_deterministic_and_use_stock_ice_ground_model(self):
+        self.assertIn(("bngEarthGroundIce", "ICE"), sf.MATERIALS)
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        with open(os.path.join(root, "mod", "beamng_earth", "levels", "beamng_earth", "art", "terrains",
+                               "main.materials.json"), encoding="utf-8") as f:
+            terrain_material = json.load(f)["bngEarthGroundIce"]
+        self.assertEqual(terrain_material["groundmodelName"], "ICE")
+        with open(os.path.join(root, "mod", "beamng_earth", "lua", "ge", "extensions", "beamngEarth",
+                               "terrain.lua"), encoding="utf-8") as f:
+            self.assertIn("bngEarthGroundIce = look(", f.read())
+        lat, lon = np.mgrid[52.30:52.34:0.001, 104.25:104.29:0.001]
+        a = sf.road_ice_mask(lat, lon)
+        b = sf.road_ice_mask(lat.copy(), lon.copy())
+        self.assertTrue(np.array_equal(a, b))
+        self.assertGreater(float(a.mean()), 0.05)
+        self.assertLess(float(a.mean()), 0.8)
+
+    def test_ice_photo_tint_is_limited_to_the_physical_ice_mask(self):
+        with tempfile.TemporaryDirectory() as d:
+            rgb = np.full((8, 8, 3), [70, 70, 70], np.uint8)
+            snow = np.zeros((8, 8), np.uint8); snow[0, 0] = 255
+            ice = np.zeros((8, 8), np.uint8); ice[4, 4] = 255
+            snow_path, ice_path = os.path.join(d, "snow.png"), os.path.join(d, "ice.png")
+            Image.fromarray(snow).save(snow_path); Image.fromarray(ice).save(ice_path)
+            out, changed = sf.winterize_photo(rgb, snow_path, ice_path)
+        self.assertEqual(changed, 2)
+        self.assertGreater(out[0, 0, 2], out[0, 0, 0])  # snow is cool white
+        self.assertGreater(out[4, 4, 2], out[4, 4, 0])  # ice is blue grey
+        self.assertTrue(np.array_equal(out[1, 1], rgb[1, 1]))
 
     def test_steep_ground_is_rock_but_snow_stays(self):
         n = 8

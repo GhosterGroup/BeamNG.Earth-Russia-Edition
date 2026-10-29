@@ -1070,6 +1070,18 @@ class PaintRoadsTest(unittest.TestCase):
         self.assertEqual(int(out[64, 74]), sf.ASPHALT, "paved wins at the crossing")
         self.assertEqual(int(idx[64, 10]), sf.GRASS, "input untouched")
 
+    def test_winter_paved_road_has_deterministic_ice_and_clear_asphalt(self):
+        lat, lon = self.grid()
+        f = features([[(-200, 0), (200, 0)]], ["residential"])
+        idx = np.full(lat.shape, sf.GRASS, np.uint8)
+        summer = sf.paint_roads(idx, lat, lon, [f], 2.0)
+        winter = sf.paint_roads(idx, lat, lon, [f], 2.0, winter=True)
+        self.assertGreater(int((winter == sf.ICE).sum()), 0)
+        self.assertGreater(int((winter == sf.ASPHALT).sum()), 0)
+        self.assertEqual(int((summer == sf.ICE).sum()), 0)
+        self.assertFalse(np.any((winter == sf.ICE) & (summer != sf.ASPHALT)))
+        self.assertTrue(np.array_equal(winter, sf.paint_roads(idx, lat, lon, [f], 2.0, winter=True)))
+
     def test_bare_verge_beside_roads(self):
         """Grass tufts stood on the asphalt along road edges (the user, 2026-10-20): a road without sidewalks gets a
         bare verge (VERGE_M a side) where the ground carries grass; rock stays rock."""

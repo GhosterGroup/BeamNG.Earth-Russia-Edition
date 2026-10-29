@@ -1951,10 +1951,13 @@ class Server:
         return info
 
     def _winterize_base_photo(self, info, rgb):
-        """Recolor the packed base photo under its SNOW terrain mask, without changing satellite detail elsewhere."""
-        mask_name = info["layers"][surfacemod.SNOW]
-        mask_path = os.path.join(self.out_dir, mask_name)
-        rgb, changed = surfacemod.winterize_photo(rgb, mask_path)
+        """Recolor the base photo only under the block's SNOW and ICE terrain masks."""
+        masks = info["layers"]
+        if not isinstance(masks, (list, tuple)) or len(masks) <= surfacemod.ICE:
+            return rgb
+        snow_path = os.path.join(self.out_dir, masks[surfacemod.SNOW])
+        ice_path = os.path.join(self.out_dir, masks[surfacemod.ICE])
+        rgb, changed = surfacemod.winterize_photo(rgb, snow_path, ice_path)
         if not changed:
             return rgb
         name = info["base"]
