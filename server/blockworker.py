@@ -651,6 +651,21 @@ def _roads_tile(aid, lat, lon, zoom, tx, ty, out_dir, vfs_dir, sidewalks, lift, 
         guardrail_rows = []
     guardrail_rows = guardrail_rows + _median_rows(frame, near_roads, box, elev, left_hand, country, guardrail_rows,
                                                    tx, ty, deck_parts)
+    if props is not None:
+        try:
+            import fences as fencesmod
+            lines_for_clearance = buildingsmod.road_lines(frame, cells, x0, y0)
+            segments = [np.asarray(line, np.float64) + np.array([x0, y0]) for line in lines_for_clearance
+                        if len(line) >= 2]
+            if segments:
+                starts = np.concatenate([line[:-1] for line in segments])
+                ends = np.concatenate([line[1:] for line in segments])
+                road_clearance = (starts, ends, np.full(len(starts), 6.0, np.float64))
+            else:
+                road_clearance = None
+            props.extend(fencesmod.tile_rows(frame, infra_fn, box, elev, road_clearance))
+        except Exception as ex:
+            log.warning("mapped fences: tile %s_%s: %s: %s", tx, ty, type(ex).__name__, ex)
     mesh = roadmeshmod.build(frame, chunks, elev, (x0, y0, 0.0), lift, clip=box, follow=True, q=q, drawn=drawn,
                              context=ctx)
     mesh = _with_plazas(mesh, frame, tx, ty, elev, (x0, y0, 0.0), getattr(_s, "surface", None))

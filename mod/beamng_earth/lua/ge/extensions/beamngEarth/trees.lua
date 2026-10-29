@@ -25,6 +25,7 @@ M.TILE_CAP = { { 300, 6000 }, { 700, 2400 }, { 1500, 900 }, { 1e9, 400 } }
 M.GROUP_MAX_M = { shrub = 250, desert_shrub = 250, rock = 400, desert_rock = 400, cliff = 1500, pylon = 1500, gantry = 800, sub_breaker = 400, sub_mast = 1000, sub_support = 300,
   sub_transformer = 500, sub_fence = 200, lamplens = 800, lampglow = 6000, rrcross = 300, rrcross_eu = 300, rrflash = 400,
   rrflash_eu = 400, rrgate = 400, rrgate_l = 400, rrgate_eu = 400, rrgate_eu_l = 400, door = 120, hydrant = 200, bin = 200, bench = 200, polelamp = 400,
+  russia_fence_wood = 250, russia_fence_metal = 250, russia_fence_chainlink = 250, russia_fence_wall = 250, russia_fence_gate = 150,
   stop = 300, giveway = 300, signal = 500, fence = 150, wallsign_logistics = 800, wallsign_rentabox = 800, wallsign_lemon = 800, wallsign_turboburger = 500,
   speed30 = 300, speed40 = 300, speed50 = 300, speed60 = 300, speed70 = 300, guardrail = 4000, guardrail_start = 4000, guardrail_end = 4000,
   guardrail_back = 4000, guardrail_back_start = 4000, guardrail_back_end = 4000 }
@@ -152,6 +153,12 @@ M.CATALOG = {
   giveway = { { '/art/shapes/garage_and_dealership/Clutter/italy_traf_sign_give_way', 3.0 } },
   -- a low wooden yard fence, 5.4 m along its x (server buildings._front_fence)
   fence = { { ECA .. 'buildings/eca_bld_wood_fence_c', 1.3 } },
+  -- Mapped fence lines (server fences.py); one reused model per surface class, near-range Forest collision only.
+  russia_fence_wood = { { ECA .. 'buildings/eca_bld_wood_fence_c', 1.3 } },
+  russia_fence_metal = { { '/art/shapes/objects/s_metal_fence', 2.0 } },
+  russia_fence_chainlink = { { WCA .. 'buildings/s_moviestudio_chainlink_fence', 2.0 } },
+  russia_fence_wall = { { '/art/shapes/common/building_architect_modules/fences/stone/s_brick_met_fence_001_400', 2.0 } },
+  russia_fence_gate = { { '/art/shapes/common/building_architect_modules/fences/metal/s_metal_fence_gate_01', 2.0 } },
   -- company signs on big boxes, warehouses and restaurants (server buildings._wall_sign; West Coast USA's firms)
   wallsign_logistics = { { WCA .. 'objects/sign_logistics', 5.8 } }, wallsign_rentabox = { { WCA .. 'objects/sign_rentabox', 5.7 } },
   wallsign_lemon = { { WCA .. 'objects/sign_lemon', 3.6 } }, wallsign_turboburger = { { WCA .. 'objects/sign_turboburger', 2.4 } },
