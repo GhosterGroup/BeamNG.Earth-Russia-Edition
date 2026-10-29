@@ -788,8 +788,8 @@ class Tracker:
                 f.cancel()                  # the old anchor's that have not started
             self.aid, self.sent, self.building, self.futs = aid, set(), set(), {}
         if self.pool is None:
-            from concurrent.futures import ThreadPoolExecutor
-            self.pool = ThreadPoolExecutor(self.per_pose, thread_name_prefix=f"{self.kind}-tile")
+            from workqueue import BoundedExecutor
+            self.pool = BoundedExecutor(self.per_pose, self.per_pose, thread_name_prefix=f"{self.kind}-tile")
         spots = [(x, y)] + ([tuple(view)] if view else [])
         skip = {k for p in spots for k in roadsmod.tiles_near(*p, self.skip_m)} if self.skip_m else ()
         if self.inner is not None:          # (the skyline: not where the far buildings' groups are)
@@ -801,6 +801,8 @@ class Tracker:
         for f in foci:
             others.update(self._near(f[0], f[1], min(self.send_m, f[2] + roadsmod.TILE / 2)))
         others -= car | seen
+        wanted = (car | seen | others) - set(skip)
+        self.pool.retain(lambda fn, args, kw: args[0] == aid and tuple(args[1:3]) in wanted)
         want = [k for k in car | seen | others if k not in self.sent and k not in self.building and k not in skip]
         if self.unit == 1:
             car_key = roadsmod.view_key(conn, aid, x, y)

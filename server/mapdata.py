@@ -250,8 +250,11 @@ class MapData:
         self._mem_lock = threading.Lock()
         self._warm_ex = None
         self._warming = set()               # (cell, layer)s queued or building in warm()
+        self._closed = False
 
     def close(self):
+        with self._lock:
+            self._closed = True
         self.pool.shutdown(wait=False)
         if self._warm_ex is not None:
             self._warm_ex.shutdown(wait=False, cancel_futures=True)
@@ -631,7 +634,19 @@ class MapData:
         queued are skipped. A cell() of one meanwhile waits for its build (the cell's lock) or builds it itself."""
         if WARM_THREADS <= 0:
             return 0
-        todo = []
+        from workqueue import BoundedExecutor, QueueFull
+
+        def run(key, layer):
+            try:
+                self.layer_arrays(key, layer, kind)
+            except Exception as e:      # the caller's demand read retries normally
+                log.debug("mapdata warm %s %s: %s: %s", key, layer, type(e).__name__, e)
+
+        def finished(k):
+            with self._lock:
+                self._warming.discard(k)
+
+        queued = 0
         for key, layer in needs:
             key = _key(key)
             k = (str(key), layer)
@@ -639,29 +654,32 @@ class MapData:
                 if k in self._mem:
                     continue
             with self._lock:
+                if self._closed or len(self._warming) >= WARM_THREADS * 2:
+                    break       # two waves at most; demand reads never wait for this producer
                 if k in self._warming:
                     continue
             if self.has(key, layer):
                 continue
             with self._lock:
-                if k in self._warming:
+                if self._closed or k in self._warming:
                     continue
+                if len(self._warming) >= WARM_THREADS * 2:
+                    break
                 self._warming.add(k)
                 if self._warm_ex is None:
-                    self._warm_ex = ThreadPoolExecutor(WARM_THREADS, thread_name_prefix="mapdata-warm")
-            todo.append((k, key, layer))
-
-        def run(k, key, layer):
-            try:
-                self.layer_arrays(key, layer, kind)
-            except Exception as e:      # (the caller's own cell() of it raises, or builds it again)
-                log.debug("mapdata warm %s %s: %s: %s", key, layer, type(e).__name__, e)
-            finally:
-                with self._lock:
+                    self._warm_ex = BoundedExecutor(WARM_THREADS, WARM_THREADS * 2,
+                                                    thread_name_prefix="mapdata-warm")
+                try:
+                    future = self._warm_ex.submit(run, key, layer)
+                except QueueFull:
                     self._warming.discard(k)
-        for k, key, layer in todo:
-            self._warm_ex.submit(run, k, key, layer)
-        return len(todo)
+                    break
+                except RuntimeError:       # close() raced with admission
+                    self._warming.discard(k)
+                    return queued
+            future.add_done_callback(lambda f, k=k: finished(k))
+            queued += 1
+        return queued
 
     def cell_at(self, lat, lon, layers=LAYERS, kind="demand"):
         return self.cell(mapcells.cell_of(lat, lon), layers, kind)

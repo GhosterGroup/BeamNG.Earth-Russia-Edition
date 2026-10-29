@@ -4692,8 +4692,8 @@ class Tracker:
             self.empty, self.retry, self.fails = set(), {}, {}
             self.started, self.stuck_said = {}, set()
         if self.pool is None:
-            from concurrent.futures import ThreadPoolExecutor
-            self.pool = ThreadPoolExecutor(BUILD_PER_POSE, thread_name_prefix="roads-tile")
+            from workqueue import BoundedExecutor
+            self.pool = BoundedExecutor(BUILD_PER_POSE, BUILD_PER_POSE, thread_name_prefix="roads-tile")
         vx, vy = (float(vel[0]), float(vel[1])) if vel else (0.0, 0.0)
         fast = math.hypot(vx, vy) >= FAST_MS
         car = wanted_tiles(x, y, vx, vy)
@@ -4704,6 +4704,9 @@ class Tracker:
             others.update(tiles_near(f[0], f[1], min(SEND_M, f[2] + TILE / 2)))
         others -= car | seen
         wanted = car | seen | others
+        # Physically remove waiting work outside this view, including cancelled old-anchor records.
+        # Running builds keep their slots until they finish; no active road or collision is unloaded here.
+        self.pool.retain(lambda fn, args, kw: args[0] == aid and tuple(args[1:3]) in wanted)
         start = set(tiles_near(x, y, SEND_M)) if ground_busy else wanted
         now = time.monotonic()
         want = [k for k in start if k not in self.sent and k not in self.building and k not in self.empty
