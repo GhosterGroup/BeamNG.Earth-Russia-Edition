@@ -457,6 +457,8 @@ def is_industrial(attrs, area_m2=None):
     cls = str(attrs.get("class") or "").strip().lower().replace(" ", "_")
     if cls in INDUSTRIAL_CLASSES:
         return True
+    if cls in SHOP_CLASSES or has_commercial_poi(attrs):
+        return False
     name = str(attrs.get("name") or "").strip().lower()
     return any(term in name for term in INDUSTRIAL_NAME_TERMS)
 

@@ -125,6 +125,8 @@ class PlanTest(unittest.TestCase):
         self.assertTrue(bld.is_industrial({"class": "warehouse", "poi_categories": ["supermarket"]}, 5000.0))
         self.assertTrue(bld.is_industrial({"class": "", "name": "Logistics depot"}, 500.0))
         self.assertFalse(bld.is_industrial({"class": "commercial", "poi_categories": ["shopping_mall"]}, 9000.0))
+        self.assertFalse(bld.is_industrial({"class": "", "name": "Factory Outlet",
+                                            "poi_categories": ["shopping_mall"]}, 9000.0))
 
     def test_floor_fallback_does_not_scale_with_unknown_building_area(self):
         small = bld.plan(rect(0, 0, 20, 20), {"class": ""}, lat=52.29, lon=104.28)
