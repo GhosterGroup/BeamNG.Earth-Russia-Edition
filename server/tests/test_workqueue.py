@@ -3,6 +3,7 @@ import os
 import sys
 import threading
 import unittest
+from concurrent.futures import as_completed, wait
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workqueue
@@ -86,6 +87,22 @@ class QueueTest(unittest.TestCase):
         f.add_done_callback(lambda _: seen.append(self.pool.snapshot()['queued']))
         self.pool.retain(lambda *_: False)
         self.assertEqual(seen, [0])
+
+    def test_cancelled_work_notifies_wait_and_as_completed_without_free_worker(self):
+        self.occupy()
+        for how in ('direct', 'retain', 'shutdown'):
+            with self.subTest(how=how):
+                f = self.pool.submit(abs, -1)
+                if how == 'direct':
+                    f.cancel()
+                elif how == 'retain':
+                    self.pool.retain(lambda *_: False)
+                else:
+                    self.pool.shutdown(wait=False, cancel_futures=True)
+                done, pending = wait([f], timeout=0.05)
+                self.assertEqual(done, {f})
+                self.assertEqual(pending, set())
+                self.assertEqual(list(as_completed([f], timeout=0.05)), [f])
 
 
 if __name__ == '__main__':

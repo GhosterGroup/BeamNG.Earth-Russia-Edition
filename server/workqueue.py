@@ -20,6 +20,7 @@ class BoundedExecutor(Executor):
         self._workers, self._capacity = max_workers, max_pending
         self._cv = threading.Condition()
         self._pending = deque()
+        self._waiting = set()      # includes records detached by retain/shutdown until cancel() notifies
         self._running = self._completed = self._cancelled = self._rejected = 0
         self._closed = False
         self._threads = [threading.Thread(target=self._run, name=f'{thread_name_prefix}_{i}', daemon=True)
@@ -37,6 +38,7 @@ class BoundedExecutor(Executor):
             future = Future()
             future.add_done_callback(self._discard_cancelled)
             self._pending.append((future, fn, args, kwargs))
+            self._waiting.add(future)
             self._cv.notify()
             return future
 
@@ -44,6 +46,11 @@ class BoundedExecutor(Executor):
         if future.cancelled():
             with self._cv:
                 self._pending = deque(item for item in self._pending if item[0] is not future)
+                if future in self._waiting:
+                    self._waiting.remove(future)
+                    # No worker will dequeue this record now. Notify wait()/as_completed() here,
+                    # exactly once; a worker that already took it owns that transition instead.
+                    future.set_running_or_notify_cancel()
                 self._cancelled += 1
 
     def retain(self, predicate):
@@ -71,6 +78,7 @@ class BoundedExecutor(Executor):
                 if not self._pending:
                     return
                 future, fn, args, kwargs = self._pending.popleft()
+                self._waiting.remove(future)
                 if not future.set_running_or_notify_cancel():
                     continue
                 self._running += 1
