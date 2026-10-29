@@ -12,15 +12,15 @@ M.CHECK_S = 5           -- leaf materials load with the first tree of their shap
 M.SPECIES = {
   { mats = { 'oak_leaves_01', 'oak_leaves_02', 'oak_leaves_03', 'm_oak_leaves_distant' },
     merged = { 'm_oak_merged_foliage' }, tint = { 1.55, 0.72, 0.32 }, days = -12,     -- oaks turn last
-    winter = { 1.05, 0.68, 0.45 }, snow = { 1.35, 1.28, 1.45 } }, -- winter setting lifts leaves toward frosted grey
+    winter = { 1.05, 0.68, 0.45 }, snow = { 2.5, 0.7, 4.0 } }, -- suppress summer green and lift leaves toward frost grey
   { mats = { 'beech_leaves', 'm_beech_leaves_distant' }, merged = { 'm_beech_merged_foliage' },
-    tint = { 1.6, 1.0, 0.35 }, days = 0, winter = { 1.15, 0.8, 0.5 }, snow = { 1.35, 1.3, 1.48 } },
+    tint = { 1.6, 1.0, 0.35 }, days = 0, winter = { 1.15, 0.8, 0.5 }, snow = { 2.5, 0.7, 4.0 } },
   { mats = { 'Birch_Leaves_01', 'm_birch_leaves_distant' }, merged = {}, tint = { 1.7, 1.3, 0.3 }, days = 10,
-    winter = { 1.0, 0.9, 0.7 }, snow = { 1.4, 1.35, 1.5 } }, -- stock birch shape has no leafless variant
+    winter = { 1.0, 0.9, 0.7 }, snow = { 2.5, 0.7, 4.0 } }, -- stock birch shape has no leafless variant
   -- Stock conifer material names verified in the installed East Coast USA / Italy level materials.
   { mats = { 'fir_leaves', 'fir_leaves_02', 'fir_leaves_dead', 'm_fir_leaves_distant', 'm_fir_leaves_distant_02',
       'scots_pine', 'cypress', 'm_cypress_distant' }, merged = {}, tint = { 1, 1, 1 }, days = 0,
-    winter = { 1, 1, 1 }, snow = { 1.55, 1.6, 1.78 } },
+    winter = { 1, 1, 1 }, snow = { 4.0, 1.3, 5.0 } },
 }
 M.SPRING = { 0.95, 1.1, 0.8 }   -- the fresh flush, every species
 M.EASE = 1.6            -- tint = amount ^ EASE: a tree holds its green early in the turn
