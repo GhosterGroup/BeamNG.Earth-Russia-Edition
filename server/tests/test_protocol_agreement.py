@@ -189,6 +189,7 @@ SERVER_TO_MOD = {
                "radius": F(NUM, OPT)},      # v1.4 M1h: the far-field radius (m), --horizon only
     "anchor_ready": {"requestId": F(int), "anchorId": F(int), "lat": F(NUM), "lon": F(NUM),
                      "groundZ": F(NUM, NULL), "terrain": F(dict),
+                     "winterRegion": F(bool, OPT),  # server-verified Siberian Russia region for winter tree materials
                      "floorZ": F(NUM, NULL, OPT),          # 2026-10-17: in a tunnel, its floor (core.floorCheck)
                      "anchorKey": F(str, OPT),             # phase 5 (lattice anchors): not sent yet
                      "provisional": F(bool, OPT),          # 2026-10-22: a teleport's ungraded first block
@@ -468,6 +469,19 @@ class WinterSettingsAgreementTest(unittest.TestCase):
         self.assertIn("winterMode = g.winterMode", core)
         schema = MOD_TO_SERVER["graphics"]
         self.assertIn("winterMode", schema)
+
+    def test_winter_tree_materials_are_gated_by_server_region(self):
+        schema = SERVER_TO_MOD["anchor_ready"]
+        self.assertEqual(schema["winterRegion"], F(bool, OPT))
+        earthd = (Path(__file__).resolve().parents[1] / "earthd.py").read_text(encoding="utf-8")
+        anchor = earthd[earthd.index('ready = {"type": "anchor_ready"'):]
+        self.assertIn('"winterRegion": winter_regions.is_siberia(lon, lat)', anchor)
+        core = (LUA / "core.lua").read_text(encoding="utf-8")
+        self.assertIn("seasonlook.update(st.inOurLevel, st.anchor and st.anchor.lat,", core)
+        self.assertIn("settings.get('winterMode') == true and st.winterRegion", core)
+        look = (LUA / "seasonlook.lua").read_text(encoding="utf-8")
+        self.assertIn("fir_leaves", look)
+        self.assertIn("winterActive", look)
 
 
 class CacheAgreementTest(unittest.TestCase):

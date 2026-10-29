@@ -3859,7 +3859,8 @@ class Connection:
                  "n/a" if gz is None else f"{gz:.1f}",
                  self.s.dem.stats_snapshot())
         ready = {"type": "anchor_ready", "requestId": req, "anchorId": anchor.id, "lat": lat, "lon": lon,
-                 "groundZ": gz, "floorZ": floor_z, "terrain": self.terrain_msg(key, info), "provisional": provisional}
+                 "groundZ": gz, "floorZ": floor_z, "terrain": self.terrain_msg(key, info), "provisional": provisional,
+                 "winterRegion": winter_regions.is_siberia(lon, lat)}
         if place is not None:           # (the player's spot off the origin, echoed: core places the car there)
             ready["px"], ready["py"] = place
         if self.s.gas_stations:         # the shapes of the region's gas stations, preloaded (only that region's)

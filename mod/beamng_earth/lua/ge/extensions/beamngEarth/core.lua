@@ -168,6 +168,7 @@ local function resetState()
     inOurLevel = false,
     active = false,          -- world logic running (rebase, far field, sky, pose)
     anchor = nil,            -- geodesy anchor of the committed frame
+    winterRegion = false,      -- server-verified Siberian Russia coverage for winter tree materials
     anchorId = nil,
     anchorKey = nil,         -- server's opaque anchor key (protocol 3), for display
     anchorSession = nil,     -- the server session (hello.sessionId) the committed anchor belongs to
@@ -611,6 +612,7 @@ end
 
 local function commitAnchor(msg, purpose)
   if st.rebasing then finishRebase() end -- never mix two frame changes
+  st.winterRegion = msg.winterRegion == true
   -- the anchor's region's gas station shapes loaded now (in this heavy slot), not at its first station
   if msg.fuelShapes then
     local gt = stopwatch.new()
@@ -1870,7 +1872,8 @@ local function onUpdate(dtReal, dtSim)
   local stg = rawget(_G, 'beamngEarth_settings')
   if stg and stg.redirectBigMap then stg.redirectBigMap(st.inOurLevel) end
   if st.inOurLevel then gps.update(st.anchor, st.player) end
-  seasonlook.update(st.inOurLevel, st.anchor and st.anchor.lat)
+  seasonlook.update(st.inOurLevel, st.anchor and st.anchor.lat,
+    settings.get('winterMode') == true and st.winterRegion)
   t = mark('ui', t)
   local frameMs = frameMs0
   statusbar.frame(frameMs0)
