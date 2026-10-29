@@ -33,6 +33,7 @@ import roadwidth as roadwidthmod
 import seacarve as seacarvemod
 import staging
 import surface as surfacemod
+import winter_regions
 import terraincache
 import xproc
 
@@ -261,11 +262,12 @@ def _take_pads(fuel_pads):
         _s.surface.add_fuel_pads(fuel_pads or ())
 
 
-def build(aid, lat, lon, hm_zoom, q, cx, cy, size, out_dir, name, ter_name=None, fuel_pads=None):
+def build(aid, lat, lon, hm_zoom, q, cx, cy, size, out_dir, name, ter_name=None, fuel_pads=None, winter=False):
     """Build and write the block (heightmap PNG name in out_dir, its surface masks beside it, and the
     .ter ter_name if given). fuel_pads: the gas station pads around it (the server's: _take_pads). Returns the info
     dict of earthd's make_heightmap (without seconds / zoom / base)."""
     _take_pads(fuel_pads)
+    winter_here = bool(winter and winter_regions.is_siberia(lon, lat))
     t0 = time.perf_counter()
     g, chunks = _s.anchor(aid, lat, lon)
     frame = geodesy.EnuFrame(lat, lon)
@@ -298,7 +300,8 @@ def build(aid, lat, lon, hm_zoom, q, cx, cy, size, out_dir, name, ter_name=None,
     if _s.surface is not None:
         t1 = time.perf_counter()
         classes, complete = _s.surface.classes(keep["lat"], keep["lon"])
-        idx = surfacemod.classify(classes, keep["u"], heightmap.SQUARE, keep["lat"], keep["lon"])
+        idx = surfacemod.classify(classes, keep["u"], heightmap.SQUARE, keep["lat"], keep["lon"],
+                                  winter=winter_here)
         if _s.sea is not None:          # under water: the bed (no grass growing through the surface)
             idx[_s.sea.depth(keep["lat"], keep["lon"]) > WATER_BED_M] = surfacemod.MUD
         road_feats, roads_complete = _s.surface.roads(keep["lat"], keep["lon"])
@@ -307,7 +310,7 @@ def build(aid, lat, lon, hm_zoom, q, cx, cy, size, out_dir, name, ter_name=None,
         if road_feats:
             before = idx
             idx = surfacemod.paint_roads(idx, keep["lat"], keep["lon"], road_feats, heightmap.SQUARE,
-                                         _s.surface.urban, _s.widths, _open_tunnels(g, keep))
+                                         _s.surface.urban, _s.widths, _open_tunnels(g, keep), winter=winter_here)
             if not (idx != before).any():   # (drawn roads over it, none painted: Discord's gravel mountain roads)
                 import roads as roadsmod
                 la0, la1 = float(np.min(keep["lat"])), float(np.max(keep["lat"]))

@@ -135,7 +135,7 @@ MOD_TO_SERVER = {
     # the settings page's graphics (Connection.set_graphics; additive): sent after every hello and on a change; the
     # far field's terrain detail (K x lodScale), the tree tiles' and far buildings' reach, the ground photo's px
     "graphics": {"lodScale": F(NUM, OPT), "treeScale": F(NUM, OPT), "buildingScale": F(NUM, OPT),
-                 "photoPx": F(NUM, OPT), "viewM": F(NUM, OPT)},
+                 "photoPx": F(NUM, OPT), "viewM": F(NUM, OPT), "winterMode": F(bool, OPT)},
     "map_tiles": {"tiles": F(list)},       # the world map's basemap tiles as files (settings.mapTiles)
     "geocode": {"id": F(int), "q": F(str), "lat": F(NUM, OPT), "lon": F(NUM, OPT)},   # the map's search box
     "route": {"id": F(int), "lat0": F(NUM), "lon0": F(NUM), "lat1": F(NUM), "lon1": F(NUM),
@@ -455,6 +455,19 @@ class CreditsAgreementTest(unittest.TestCase):
         settings = (LUA / "settings.lua").read_text(encoding="utf-8")
         self.assertRegex(settings, r"creditsVisible = \{ kind = 'bool', default = true")
         self.assertIn("M.onUiChangedState = onUiChangedState", core)
+
+
+class WinterSettingsAgreementTest(unittest.TestCase):
+    def test_winter_mode_reaches_terrain_generator_from_saved_setting(self):
+        settings = (LUA / "settings.lua").read_text(encoding="utf-8")
+        self.assertRegex(settings, r"winterMode = \{ kind = 'bool', default = false")
+        self.assertIn("winterMode = values.winterMode", settings)
+        page = (LUA.parents[3] / "ui" / "ui-vue" / "mods" / "beamngEarth" / "earthSettingsStore.js").read_text(encoding="utf-8")
+        self.assertIn('id: "winterMode", type: "bool"', page)
+        core = (LUA / "core.lua").read_text(encoding="utf-8")
+        self.assertIn("winterMode = g.winterMode", core)
+        schema = MOD_TO_SERVER["graphics"]
+        self.assertIn("winterMode", schema)
 
 
 class CacheAgreementTest(unittest.TestCase):

@@ -86,6 +86,7 @@ import cdae  # noqa: E402
 import colormatch as colormatchmod  # noqa: E402
 import credits as creditsmod  # noqa: E402
 import surface as surfacemod  # noqa: E402
+import winter_regions  # noqa: E402
 import navgraph as navgraphmod  # noqa: E402
 import prewarm as prewarmmod  # noqa: E402
 import parking as parkingmod  # noqa: E402
@@ -766,6 +767,7 @@ class Server:
         # On-screen data credits (credits.py): a creditsmod.Credits, or None (--credits off; Server()'s default)
         self.credits = credits
         self.surface = surface      # surface.Surface: ground models under the physics block (--surface on)
+        self.winter_mode = False    # session setting; forwarded to block workers for deterministic terrain masks
         if surface is not None and self.airports is not None:      # the runways painted in (GitHub #337)
             surface.extra_pads = self.airports.runway_pads
         self.mapdata = mapdata      # mapdata.MapData for the roads (--roads on), else None
@@ -1683,7 +1685,8 @@ class Server:
                 info = pool.submit(
                     blockworker.build, anchor.id, anchor.lat, anchor.lon, anchor.hm_zoom, q, cx, cy,
                     self.layout.block, self.out_dir, self.hm_name(key), self.ter_name(key),
-                    fuel_pads=self.block_fuel_pads(anchor, cx, cy, self.layout.block)).result()
+                    fuel_pads=self.block_fuel_pads(anchor, cx, cy, self.layout.block),
+                    winter=self.winter_mode).result()
                 self.hm_stage[key] = "its base photo"
                 return self._finish_heightmap(anchor, cx, cy, info, t0, base)
             self.hm_stage[key] = "the build in the server's process"
@@ -1768,7 +1771,9 @@ class Server:
             # rows flipped as the heightmap's (row 0 = north)
             t1 = time.perf_counter()
             classes, complete = self.surface.classes(keep["lat"], keep["lon"])
-            idx = surfacemod.classify(classes, keep["u"], heightmap.SQUARE, keep["lat"], keep["lon"])
+            winter_here = bool(self.winter_mode and winter_regions.is_siberia(anchor.lon, anchor.lat))
+            idx = surfacemod.classify(classes, keep["u"], heightmap.SQUARE, keep["lat"], keep["lon"],
+                                      winter=winter_here)
             if self.sea is not None and not provisional:    # under water: the bed (no grass through the surface)
                 idx[self.sea.depth(keep["lat"], keep["lon"]) > blockworker.WATER_BED_M] = surfacemod.MUD
             road_feats, roads_complete = self.surface.roads(keep["lat"], keep["lon"])
@@ -1777,7 +1782,7 @@ class Server:
             if road_feats:              # (provisional: the widths' guesses, not measured between the buildings)
                 idx = surfacemod.paint_roads(idx, keep["lat"], keep["lon"], road_feats, heightmap.SQUARE,
                                              self.surface.urban, None if provisional else self.road_widths,
-                                             blockworker._open_tunnels(g, keep))
+                                             blockworker._open_tunnels(g, keep), winter=winter_here)
             idx = (surfacemod.paint_lots(idx, keep["lat"], keep["lon"], self.surface.lots(keep["lat"], keep["lon"]))
                 if hasattr(self.surface, "lots") else idx)
             if hasattr(self.surface, "fuel_pads"):      # gas station forecourts (--gas-stations on)
@@ -1918,6 +1923,7 @@ class Server:
         future from _base_photo, started with the heights), the timings."""
         if base is not None:
             t1 = time.perf_counter()
+            winter_here = bool(self.winter_mode and winter_regions.is_siberia(anchor.lon, anchor.lat))
             if self.fast and not base.done():
                 concurrent.futures.wait([base], timeout=BASE_FAST_WAIT_S)
             if self.fast and not base.done():
@@ -1925,7 +1931,8 @@ class Server:
                 info["base"] = None
                 info["stages"]["baseWait"] = time.perf_counter() - t1
                 info["stages"]["baseLater"] = 1.0
-                base.add_done_callback(lambda f, key=(anchor.id, cx, cy): self._base_later(key, f))
+                base.add_done_callback(lambda f, key=(anchor.id, cx, cy), winter=winter_here:
+                                       self._base_later(key, f, winter=winter))
                 info["seconds"] = time.perf_counter() - t0
                 info["zoom"] = anchor.hm_zoom
                 return info
@@ -1933,18 +1940,38 @@ class Server:
             info["stages"]["baseWait"] = time.perf_counter() - t1
             if photo and info.get("layers") and info.get("ter"):
                 try:                # lawns only where the photo is green (before the game reads the block)
-                    surfacemod.photo_lawns(self.out_dir, info["ter"], info["layers"], photo[0])
+                    if winter_here and info.get("base"):
+                        photo[0] = self._winterize_base_photo(info, photo[0])
+                    surfacemod.photo_lawns(self.out_dir, info["ter"], info["layers"], photo[0],
+                                           winter=winter_here)
                 except Exception as e:
                     log.info("photo lawns %s: %s", (anchor.id, cx, cy), e)
         info["seconds"] = time.perf_counter() - t0
         info["zoom"] = anchor.hm_zoom
         return info
 
-    def _base_later(self, key, fut, tries=4):
+    def _winterize_base_photo(self, info, rgb):
+        """Recolor the packed base photo under its SNOW terrain mask, without changing satellite detail elsewhere."""
+        mask_name = info["layers"][surfacemod.SNOW]
+        mask_path = os.path.join(self.out_dir, mask_name)
+        rgb, changed = surfacemod.winterize_photo(rgb, mask_path)
+        if not changed:
+            return rgb
+        name = info["base"]
+        path = os.path.join(self.out_dir, name)
+        tmp = staging.tmp_for(path)
+        with open(tmp, "wb") as f:
+            f.write(terraincache.stored_png(rgb))
+        staging.replace(tmp, path)
+        terraincache.base_entry(self.user_dir, f"{self.vfs_dir}/{name}", base_ao_vfs(self.base_px), rgb, BASE_AO)
+        info["winterPixels"] = changed
+        return rgb
+
+    def _base_later(self, key, fut, tries=4, winter=False):
         """A block sent without its photo (a fast player): the photo, once rendered, onto the block's entry (later
         terrain_ready answers) and to the mod (block_base: the block in use takes it now, a ready one at its commit)."""
         try:
-            name = fut.result()[0]
+            name, photos, _ = fut.result()
         except Exception:
             return
         conns = [c for c in list(self.connections) if getattr(c, "loop", None) is not None]
@@ -1960,9 +1987,28 @@ class Server:
                 return
             if info is not None and not info.get("base"):
                 info["base"] = name
-            for c in list(self.connections):    # (the mod drops another anchor's)
-                c.send({"type": "block_base", "anchorId": key[0], "cx": key[1], "cy": key[2],
-                        "base": f"{self.vfs_dir}/{name}", "baseSize": size})
+
+            def send():
+                for c in list(self.connections):    # (the mod drops another anchor's)
+                    c.send({"type": "block_base", "anchorId": key[0], "cx": key[1], "cy": key[2],
+                            "base": f"{self.vfs_dir}/{name}", "baseSize": size})
+
+            if (info is not None and winter and self.winter_mode and photos and info.get("layers")
+                    and info.get("base")):
+                packed = self.base_pool.submit(self._winterize_base_photo, info, photos[0])
+
+                def photo_ready(done):
+                    try:
+                        done.result()
+                    except Exception as e:
+                        log.info("winter base photo %s: %s", key, e)
+                    try:
+                        loop.call_soon_threadsafe(send)
+                    except RuntimeError:
+                        pass
+                packed.add_done_callback(photo_ready)
+                return
+            send()
         try:
             loop.call_soon_threadsafe(apply)
         except RuntimeError:
@@ -3580,6 +3626,10 @@ class Connection:
         skyline's and the far bridges' (buildings.FAR_SEND_M / SKY_SEND_M / BRIDGE_FAR_SEND_M times it), photoPx the
         ground photo's size (Server.set_base_px). Scales are clamped to GRAPHICS_SCALE; the far field is selected
         again at once, the trackers send and drop by their new reach at the next pose."""
+        winter = msg.get("winterMode")
+        if isinstance(winter, bool):
+            self.s.winter_mode = winter
+
         def scale(name, cur):
             v = msg.get(name)
             if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):

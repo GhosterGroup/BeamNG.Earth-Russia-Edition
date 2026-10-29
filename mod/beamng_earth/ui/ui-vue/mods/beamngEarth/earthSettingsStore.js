@@ -40,6 +40,7 @@ export const settingsSchema = [
   {
     name: "World",
     items: [
+      { id: "winterMode", type: "bool", default: false, name: "Siberian Winter", desc: "Snow covered terrain in Siberia within Russia. Rebuilds new terrain blocks as you move; already loaded blocks may need a level reload. For matching BeamMP terrain, each client must use the same setting." },
       { id: "skyMode", type: "select", default: "real", name: "Sun and stars", desc: "Real time: the sun, moon and stars follow the real clock and date where you are. Manual: use the game's own Time & Weather controls. Changing the time in the pause menu switches this to Manual by itself; choose Real time to go back.",
         note: "Changing the time in the pause menu switches this to Manual.",
         options: [ { label: "Real time", value: "real" }, { label: "Manual", value: "manual" } ] },

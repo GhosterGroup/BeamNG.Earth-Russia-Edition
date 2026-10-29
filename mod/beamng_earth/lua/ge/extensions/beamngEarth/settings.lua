@@ -72,6 +72,7 @@ M.SCHEMA = {
   skyMode = { kind = 'enum', default = 'real', values = { 'real', 'manual' }, label = 'Sky' },
   clouds = { kind = 'bool', default = true, label = 'Clouds' },
   weatherMode = { kind = 'enum', default = 'real', values = { 'real', 'manual' }, label = 'Weather' },
+  winterMode = { kind = 'bool', default = false, label = 'Siberian Winter' },
   realGravity = { kind = 'bool', default = true, label = 'Real gravity' },
   -- grass and shrubs on the surface layers (groundcover.lua; needs the server's --surface on)
   groundCover = { kind = 'bool', default = true, label = 'Grass and shrubs' },
@@ -109,7 +110,7 @@ M.SCHEMA = {
 }
 M.ORDER = { 'quality', 'terrainDetail', 'groundPhoto', 'trees', 'treeDistance', 'buildingDistance', 'objectDetail',
   'grassDistance', 'nightLights', 'rebaseDistance', 'viewDistanceMode', 'viewDistanceKm', 'hazeStrength', 'skyMode', 'clouds',
-  'weatherMode', 'realGravity', 'groundCover', 'groundCoverDensity', 'rocks', 'roads', 'highwaySigns', 'dashboardSatellite',
+  'weatherMode', 'winterMode', 'realGravity', 'groundCover', 'groundCoverDensity', 'rocks', 'roads', 'highwaySigns', 'dashboardSatellite',
   'hudVisible', 'statusBar',
   'placeNamesOnline', 'creditsVisible', 'beammpOnLaunch',
   'creditsCorner', 'creditsSize', 'cacheCapGb', 'devOutlineKm', 'devMapKm' }
@@ -382,6 +383,7 @@ function M.serverGraphics()
     photoPx = okR and terrain.photoSize and terrain.photoSize() or tonumber(values.groundPhoto),
     -- a fixed view distance: the far field's radius at most (nothing past it is drawn); 0 = the real horizon
     viewM = values.viewDistanceMode == 'fixed' and values.viewDistanceKm * 1000 or 0,
+    winterMode = values.winterMode == true,
   }
 end
 
@@ -403,6 +405,7 @@ M.APPLY = {
   end,
   viewDistanceMode = function() applyViewDistance(); sendGraphics() end,
   viewDistanceKm = function() applyViewDistance(); sendGraphics() end,
+  winterMode = sendGraphics,
   skyMode = function(v)
     local sky = ext('beamngEarth_sky')
     if sky and sky.setMode and sky.getMode and sky.getMode() ~= v then sky.setMode(v) end

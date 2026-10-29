@@ -106,12 +106,18 @@ def lawns(lat, lon):
     return n > (0.5 - share) * 1.1
 
 
-def classify(classes, u, square, lat=None, lon=None):
+def classify(classes, u, square, lat=None, lon=None, *, winter=False):
     """Material index per sample: the land-cover class's material, ROCK where the slope of the
     height grid u (metres, [row, col], `square` m apart) is steeper than ROCK_SLOPE_DEG (snow stays
     snow). With the samples' positions, built-up land is LAWN where lawns() says. Pure."""
     classes = np.asarray(classes, np.uint8)
     idx = _LUT[classes]
+    in_winter_region = False
+    if winter and lat is not None and lon is not None:
+        # One polygon check per block, not per terrain sample. Terrain blocks are small enough that
+        # their centre gives stable regional coverage without allocating another million-cell mask.
+        import winter_regions
+        in_winter_region = winter_regions.is_siberia(float(np.mean(lon)), float(np.mean(lat)))
     if lat is not None and lon is not None:
         # (KyzoFox 1.5.4: lawns() only at the built-up samples, the only ones it can change: on rural ground
         # that is almost none of a block)
@@ -121,6 +127,11 @@ def classify(classes, u, square, lat=None, lon=None):
             sub = idx[urban]
             sub[lawns(np.asarray(lat, np.float64)[urban], np.asarray(lon, np.float64)[urban])] = np.uint8(LAWN)
             idx[urban] = sub
+    if in_winter_region:
+        # Snow replaces grasses, crops, shrub/low vegetation, bare fields and mown yards. Built
+        # surfaces, wetlands, water and roads are handled by their own later layers.
+        covered = np.isin(classes, (10, 30, 40, 60, 100)) | ((classes == 50) & (idx == LAWN))
+        idx = np.where(covered, np.uint8(SNOW), idx).astype(np.uint8)
     u = np.asarray(u, np.float64)
     if min(u.shape) < 2:            # no slope from a single row / column
         return idx.astype(np.uint8)
@@ -219,6 +230,13 @@ ROAD_MATERIAL = {"dirt": DIRT, "gravel": LOOSE, "cobble": COBBLE, "paved": ASPHA
 ROAD_ORDER = ("dirt", "gravel", "rock", "grass", "cobble", "paved")
 
 
+def road_material(kind, winter=False):
+    """The road's terrain layer; snow covers unpaved roads in winter while paved roads stay visible."""
+    if winter and kind in ("dirt", "gravel"):
+        return SNOW
+    return ROAD_MATERIAL[kind]
+
+
 def grid_affine(lat, lon):
     """Least-squares affine map (lon, lat) -> (col, row) of a sample grid given by its lat / lon arrays
     (a 1 km block is affine to well under a centimetre). Returns a function (lon, lat) -> (col, row)."""
@@ -264,7 +282,7 @@ ROAD_EDGE_M = 1.0    # m past a carriageway's edge its material reaches: a squar
                      # on dirt; the grain beyond lies under the edge decal, roads.EDGE_DECAL)
 
 
-def paint_roads(idx, lat, lon, feats_list, square, urban_fn=None, widths=None, extra=()):
+def paint_roads(idx, lat, lon, feats_list, square, urban_fn=None, widths=None, extra=(), *, winter=False):
     """idx (material per sample, [row, col], as classify gives it) with the roads of feats_list (the
     "roads" Features of the cells around) drawn in at their width: ROAD_MATERIAL by surface kind.
     lat / lon: the samples' positions; square: m between samples; urban_fn: as roads.road_specs (the
@@ -382,9 +400,9 @@ def paint_roads(idx, lat, lon, feats_list, square, urban_fn=None, widths=None, e
         v |= corner_verge
     out[v & np.isin(out, VERGE_FROM)] = VERGE
     for k in ROAD_ORDER:
-        out[mask(segs[k])] = ROAD_MATERIAL[k]
+        out[mask(segs[k])] = road_material(k, winter)
     if corner is not None:
-        out[corner] = ROAD_MATERIAL["paved"]
+        out[corner] = road_material("paved", winter)
     return out
 
 
@@ -959,12 +977,37 @@ def write_masks(idx, out_dir, stem):
     return names
 
 
+def winterize_photo(rgb, snow_mask_path):
+    """Whiten only terrain samples assigned SNOW, preserving their image detail and all other pixels."""
+    try:
+        with Image.open(snow_mask_path) as im:
+            mask = np.asarray(im.convert("L").resize((rgb.shape[1], rgb.shape[0]), Image.Resampling.NEAREST)) > 0
+    except (OSError, ValueError):
+        return rgb, 0
+    if not mask.any():
+        return rgb, 0
+    out = np.asarray(rgb, np.uint8).copy()
+    tint = np.array([224.0, 230.0, 237.0], np.float32)
+    # Bound temporary arrays to 128 rows (about 1 MB at 2048 px), even for a fully snow-covered block.
+    for y in range(0, out.shape[0], 128):
+        rows = slice(y, min(y + 128, out.shape[0]))
+        active = mask[rows]
+        if not active.any():
+            continue
+        pixels = out[rows][active].astype(np.float32)
+        lum = pixels @ np.array([0.299, 0.587, 0.114], np.float32)
+        # Lift and desaturate satellite colours into snow while retaining shading and texture.
+        snow = 0.22 * lum[:, None] + 0.78 * tint
+        out[rows][active] = np.clip(np.rint(snow), 0, 255).astype(np.uint8)
+    return out, int(mask.sum())
+
+
 SNOW_BRIGHT = 165           # mean of r, g, b of the ground photo (0-255) from which a snow candidate stays snow, ...
 SNOW_GREY = 40              # ... with at most this spread between its channels (white, not pale scree)
 LAWN_GREEN = 10             # 2g - r - b of the ground photo above which a lawn candidate stays a lawn
 
 
-def photo_lawns(out_dir, ter_name, mask_names_, rgb):
+def photo_lawns(out_dir, ter_name, mask_names_, rgb, *, winter=False):
     """Detail mode: the block's LAWN samples where the ground photo (rgb (px, px, 3), row 0 = north, the
     block's footprint) is not green turn DIRT (paved yards, lots and driveways: the grass layer's blades
     over a pale photo looked like snow, Lancaster 2026-10-14). Patches the .ter's layer map and the two
@@ -1003,7 +1046,7 @@ def photo_lawns(out_dir, ter_name, mask_names_, rgb):
     green = exg > LAWN_GREEN
     white = (c.mean(2) >= SNOW_BRIGHT) & (c.max(2) - c.min(2) <= SNOW_GREY)
     bare = lawn & ~green
-    scree = snow & ~white
+    scree = np.zeros_like(snow) if winter else snow & ~white
     if to_local[DIRT] == heightmap.TER_HOLE:
         bare[:] = False
     if to_local[LOOSE] == heightmap.TER_HOLE:

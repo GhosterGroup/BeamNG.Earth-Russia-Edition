@@ -32,6 +32,29 @@ class ClassifyTest(unittest.TestCase):
     def test_unknown_class_is_dirt(self):
         self.assertEqual(sf.classify(np.array([[7, 255]], np.uint8), np.zeros((1, 2)), 2.0).tolist(), [[sf.DIRT, sf.DIRT]])
 
+    def test_winter_covers_grass_fields_and_lawns_only_in_siberia(self):
+        classes = np.array([[10, 30, 40, 50, 60, 70, 80]], np.uint8)
+        u = np.zeros(classes.shape)
+        lat = np.full(classes.shape, 52.3)
+        lon = np.full(classes.shape, 104.3)
+        winter = sf.classify(classes, u, 2.0, lat, lon, winter=True)
+        self.assertEqual(winter.tolist(), [[sf.SNOW, sf.SNOW, sf.SNOW, sf.SNOW, sf.SNOW, sf.SNOW, sf.MUD]])
+        summer = sf.classify(classes, u, 2.0, lat, lon)
+        self.assertEqual(summer.tolist(), [[sf.GRASS, sf.GRASS, sf.DIRT, sf.LAWN, sf.LOOSE, sf.SNOW, sf.MUD]])
+
+    def test_winter_keeps_non_siberian_landcover_unchanged(self):
+        classes = np.array([[10, 40, 50]], np.uint8)
+        idx = sf.classify(classes, np.zeros(classes.shape), 2.0, np.full(classes.shape, 55.0),
+                          np.full(classes.shape, 37.0), winter=True)
+        self.assertTrue(np.isin(idx, (sf.GRASS, sf.DIRT, sf.LAWN)).all())
+
+    def test_winter_road_material_snow_covers_only_unpaved_roads(self):
+        self.assertEqual(sf.road_material("dirt", winter=True), sf.SNOW)
+        self.assertEqual(sf.road_material("gravel", winter=True), sf.SNOW)
+        self.assertEqual(sf.road_material("paved", winter=True), sf.ASPHALT)
+        self.assertEqual(sf.road_material("cobble", winter=True), sf.COBBLE)
+        self.assertEqual(sf.road_material("dirt", winter=False), sf.DIRT)
+
     def test_steep_ground_is_rock_but_snow_stays(self):
         n = 8
         u = np.tile(np.arange(n) * 2.0 * 1.2, (n, 1))          # slope 1.2 (50 deg) along x
@@ -111,6 +134,18 @@ class CompactTerTest(unittest.TestCase):
 
 
 class PhotoSnowTest(unittest.TestCase):
+    def test_winter_photo_lifts_only_the_snow_terrain_mask(self):
+        rgb = np.full((8, 8, 3), (55, 110, 45), np.uint8)
+        mask = np.zeros((4, 4), np.uint8)
+        mask[:, :2] = 255
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "snow.png")
+            Image.fromarray(mask).save(path)
+            out, count = sf.winterize_photo(rgb, path)
+        self.assertEqual(count, 32)
+        self.assertGreater(float(out[:, :4].mean()), 190)
+        self.assertTrue(np.array_equal(out[:, 4:], rgb[:, 4:]))
+
     def test_snow_only_where_the_photo_is_white(self):
         # WorldCover "snow and ice" on the Stelvio Pass's summit where the orthophoto has grey-brown scree (#40/#44)
         import tempfile
@@ -128,6 +163,19 @@ class PhotoSnowTest(unittest.TestCase):
             inner = lay[1:-1, 1:-1]
             self.assertTrue((inner[: n // 2 - 1] == sf.LOOSE).all(), "south half: scree")
             self.assertTrue((inner[n // 2:] == sf.SNOW).all(), "north half: snow")
+
+    def test_winter_override_keeps_snow_over_green_satellite_photo(self):
+        n = 16
+        idx = np.full((n, n), sf.SNOW, np.uint8)
+        rgb = np.zeros((64, 64, 3), np.uint8)
+        rgb[:] = (70, 120, 45)
+        with tempfile.TemporaryDirectory() as d:
+            _, used = sf.write_ter(d, "winter.ter", np.zeros((n, n), np.uint16), idx)
+            names = sf.write_masks(idx[::-1], d, "winter")
+            sf.photo_lawns(d, "winter.ter", names, rgb, winter=True)
+            with open(os.path.join(d, "winter.ter"), "rb") as f:
+                lay = _glob(np.frombuffer(f.read()[5 + 2 * n * n:5 + 3 * n * n], np.uint8).reshape(n, n), used)
+            self.assertTrue((lay[1:-1, 1:-1] == sf.SNOW).all())
 
 
 class WarpTest(unittest.TestCase):
