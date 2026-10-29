@@ -695,7 +695,7 @@ end
 -- goes out too (it cancels).
 M.MAP_ASK_S = 4
 M.MAP_TILES_DIR = '/temp/beamngEarth/maptiles/'
-M.MAP_LAYERS = { sat = '.jpg', map = '.jpg', labels = '.png' }   -- server maptiles.LAYERS
+M.MAP_LAYERS = { sat = '.jpg', winter = '.jpg', map = '.jpg', labels = '.png' }   -- server maptiles.LAYERS
 function M.mapTilePath(layer, z, x, y)
   local zxy = string.format('%d/%d/%d', z, x, y)
   if layer == 'sat' then return M.MAP_TILES_DIR .. zxy .. '.jpg' end   -- (where it always was)

@@ -115,6 +115,7 @@ console.log("mapmath ok")
 // tile layers: file paths (server maptiles.tile_path), centre-first order, the EOX credit
 {
   assert.equal(m.tilePath("/t/", "sat", 3, 2, 1), "/t/3/2/1.jpg")
+  assert.equal(m.tilePath("/t/", "winter", 3, 2, 1), "/t/winter/3/2/1.jpg")
   assert.equal(m.tilePath("/t/", "map", 3, 2, 1), "/t/map/3/2/1.jpg")
   assert.equal(m.tilePath("/t/", "labels", 3, 2, 1), "/t/labels/3/2/1.png")
   const tiles = m.visibleTiles(39.28, -76.59, 12.4, 1600, 900)

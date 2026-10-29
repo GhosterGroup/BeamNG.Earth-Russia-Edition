@@ -132,6 +132,8 @@
         <div v-if="layersPanel" class="layers-panel" @mousedown.stop @wheel.stop @dblclick.stop>
           <div class="panel-sub">Base map</div>
           <label class="layer-opt"><input type="radio" value="sat" v-model="baseLayer" /> Satellite</label>
+          <label class="layer-opt"><input type="radio" value="winter" v-model="baseLayer" /> Winter satellite
+            <span class="layer-hint">(Siberia)</span></label>
           <label class="layer-opt"><input type="radio" value="map" v-model="baseLayer" /> Map</label>
           <label class="layer-opt"><input type="radio" value="dark" v-model="baseLayer" /> Dark</label>
           <div class="panel-sub">Overlays</div>
@@ -335,7 +337,7 @@ function poll() {
 const TILE_DIR = "/temp/beamngEarth/maptiles/"
 function stored(key, def) { try { const v = localStorage.getItem(key); return v === null ? def : v } catch (e) { return def } }
 function store(key, v) { try { localStorage.setItem(key, v) } catch (e) { /* storage blocked: not kept */ } }
-const BASE_LAYERS = new Set(["sat", "map", "dark"])
+const BASE_LAYERS = new Set(["sat", "winter", "map", "dark"])
 const storedBase = stored("beamngEarth.map.base", "sat")
 const baseLayer = ref(BASE_LAYERS.has(storedBase) ? storedBase : "sat")
 const labelsOn = ref(stored("beamngEarth.map.labels", "0") === "1")
@@ -438,7 +440,7 @@ const weatherBadge = computed(() => {
 const creditsFull = ref(false)          // the credits' whole text (else two lines)
 const attributionText = computed(() => {
   if (!state.value.mapPort) return ""
-  const sat = baseLayer.value === "sat"
+  const sat = baseLayer.value === "sat" || baseLayer.value === "winter"
   const parts = [mm.layerCredits(tileBaseLayer.value, labelsOn.value)]   // the EOX map / labels layers shown
   const cba = state.value.creditsByArea
   if (cba) {                                // only the imagery sources the view shows (the server's areas)

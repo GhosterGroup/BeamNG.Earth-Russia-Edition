@@ -28,7 +28,7 @@ def frozen_data(tmp):
         if arg != "--add-data":
             continue
         source, destination = command[i + 1].split(build_app.SEP, 1)
-        if Path(source).suffix in (".json", ".geojson"):
+        if Path(source).suffix in (".json", ".geojson", ".gz"):
             target = bundle / destination / Path(source).name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
@@ -62,6 +62,11 @@ class PackagedExitSignsTest(unittest.TestCase):
 
 
 class PackagedMileMarkersTest(unittest.TestCase):
+    def test_russia_boundary_is_bundled_for_winter_map_coverage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = frozen_data(tmp)
+            self.assertTrue((bundle / 'data' / 'winter' / 'russia_admin0_50m.geojson.gz').is_file())
+
     def test_building_overrides_are_bundled_for_server(self):
         with tempfile.TemporaryDirectory() as tmp:
             bundle = frozen_data(tmp)

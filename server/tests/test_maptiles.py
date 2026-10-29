@@ -3,6 +3,7 @@ coverage fall-through, overzoom, errors, and the HTTP server on 127.0.0.1. Also 
 tile math test (test_mapmath.mjs) when node is installed."""
 import asyncio
 import io
+import math
 import os
 import shutil
 import subprocess
@@ -172,11 +173,36 @@ class MapTilesTest(unittest.TestCase):
 class LayersTest(unittest.TestCase):
     def test_paths(self):
         root = os.path.join("r", "maptiles")
+        self.assertIn("winter", maptiles.LAYERS, "the winter map layer needs an isolated cache key")
         self.assertEqual(maptiles.tile_path(root, "sat", 3, 2, 1), os.path.join(root, "3", "2", "1.jpg"))
+        self.assertEqual(maptiles.tile_path(root, "winter", 3, 2, 1),
+                         os.path.join(root, "winter", "3", "2", "1.jpg"))
         self.assertEqual(maptiles.tile_path(root, "map", 3, 2, 1), os.path.join(root, "map", "3", "2", "1.jpg"))
         self.assertEqual(maptiles.tile_path(root, "labels", 3, 2, 1), os.path.join(root, "labels", "3", "2", "1.png"))
         with self.assertRaises(KeyError):
             maptiles.tile_path(root, "osm", 3, 2, 1)
+
+    def test_winter_style_lifts_green_ground_but_keeps_neutral_roads_distinct(self):
+        winterize = getattr(maptiles, "winterize_rgb", None)
+        self.assertTrue(callable(winterize), "winter layer needs its own deterministic RGB transform")
+        rgb = np.array([[[45, 130, 45], [70, 70, 70], [190, 40, 35]]], dtype=np.uint8)
+        out = winterize(rgb)
+        self.assertEqual(out.shape, rgb.shape)
+        self.assertFalse(np.array_equal(out[0, 0], rgb[0, 0]), "green ground becomes snow-muted")
+        np.testing.assert_array_less(np.abs(out[0, 1].astype(int) - rgb[0, 1].astype(int)), [10, 10, 10])
+        self.assertGreater(int(out[0, 0].mean()), int(rgb[0, 0].mean()), "snow brightens vegetation")
+        np.testing.assert_array_equal(out[0, 2], rgb[0, 2], "red roofs remain identifiable")
+
+    def test_winter_layer_uses_separate_generated_tile_and_original_fallback(self):
+        self.assertIn("winter", maptiles.LAYERS, "winter satellite tiles must be a separate map layer")
+        tiles = maptiles.MapTiles(FakeImagery())
+        z, lon, lat = 12, 104.281, 52.287
+        n = 1 << z
+        x = math.floor((lon + 180) / 360 * n)
+        y = math.floor((1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n)
+        sat = decode(tiles.layer_tile("sat", z, x, y))
+        winter = decode(tiles.layer_tile("winter", z, x, y))
+        self.assertFalse(np.array_equal(sat, winter))
 
     def test_eox_layers_not_imagery_choices(self):
         for src in maptiles.LAYER_SOURCES.values():
@@ -369,11 +395,12 @@ class MapTilesMessageTest(unittest.TestCase):
 
             def send(m):
                 got.append(m)
-                if len(got) == 3:
+                if len(got) == 4:
                     done.set()
             conn = types.SimpleNamespace(s=s, loop=asyncio.get_running_loop(), send=send)
             await earthd.Connection.map_tiles(conn, {"tiles": [
-                [12, 1170, 1566], [12, 1170, 1566, "map"], [12, 1170, 1566, "labels"], [12, 1170, 1566, "osm"],
+                [12, 1170, 1566], [12, 1170, 1566, "map"], [12, 1170, 1566, "labels"],
+                [12, 1170, 1566, "winter"], [12, 1170, 1566, "osm"],
                 [12, 1170, 1566, ["x"]], [40, 0, 0], "junk", [1, 2]]})
             await asyncio.wait_for(done.wait(), 5)
             await earthd.Connection.map_tiles(conn, {"tiles": {}})     # an empty Lua table: cancels, no error
@@ -381,9 +408,9 @@ class MapTilesMessageTest(unittest.TestCase):
         got = asyncio.run(run())
         s.map_files.close()
         self.assertTrue(all(m["type"] == "map_tiles_ready" and len(m["tiles"]) == 1 for m in got))
-        self.assertEqual(sorted(m["tiles"][0][4] for m in got), ["labels", "map", "sat"])
+        self.assertEqual(sorted(m["tiles"][0][4] for m in got), ["labels", "map", "sat", "winter"])
         self.assertTrue(all(m["tiles"][0][3] is True for m in got))
-        for layer in ("sat", "map", "labels"):
+        for layer in ("sat", "map", "labels", "winter"):
             self.assertTrue(os.path.exists(maptiles.tile_path(os.path.join(root, "maptiles"), layer, 12, 1170, 1566)))
 
 

@@ -44,6 +44,7 @@ from PIL import Image
 
 import imagery as imagerymod
 import staging
+import winter_regions
 
 log = logging.getLogger("earthd.maptiles")
 
@@ -115,7 +116,7 @@ LAYER_SOURCES = {
 # which already has hillshaded relief baked in) through a CSS invert+hue-rotate filter (EarthMap.vue's .tile-dark),
 # the usual trick for a dark map without a dark-themed tile set of its own (checked, 2026-10-27: a colour-inverted
 # terrain-light tile over the Alps keeps the relief, the user wanted mountains to still show, not a flat dark colour).
-LAYERS = {"sat": "jpg", "map": "jpg", "labels": "png"}     # layer id -> file extension
+LAYERS = {"sat": "jpg", "winter": "jpg", "map": "jpg", "labels": "png"}  # layer id -> file extension
 
 
 def tile_path(root, layer, z, x, y):
@@ -181,6 +182,33 @@ def encode_png(rgba):
     return buf.getvalue()
 
 
+def winterize_rgb(rgb):
+    """Lift green ground into cool snow tones while leaving neutral roads and red roofs legible."""
+    src = np.asarray(rgb, dtype=np.uint8)
+    if src.ndim != 3 or src.shape[2] != 3:
+        raise ValueError("winterize_rgb expects an HxWx3 RGB array")
+    a = src.astype(np.float32)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    dominance = g - np.maximum(r, b)
+    snow = np.clip((dominance - 3.0) / 65.0, 0.0, 0.82)
+    luminance = 0.299 * r + 0.587 * g + 0.114 * b
+    grey = luminance[..., None]
+    desaturated = grey + (a - grey) * (1.0 - snow[..., None])
+    lift = snow * np.clip((210.0 - luminance) * 0.58, 0.0, 95.0)
+    out = desaturated + lift[..., None] * np.array((0.98, 1.0, 1.07), dtype=np.float32)
+    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
+
+
+def winterize_jpeg(data):
+    """Apply the winter map transform to one satellite tile without retaining it in a process-wide cache."""
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            rgb = np.asarray(im.convert("RGB"))
+    except (OSError, ValueError) as e:
+        raise imagerymod.ImageryError(f"undecodable winter satellite tile: {e}") from None
+    return encode_jpeg(winterize_rgb(rgb))
+
+
 def layer_image(data, layer, dz, x, y):
     """A layer's file bytes from its source tile's bytes, dz levels up (cropped and scaled up): the source's own
     bytes when they are already the file's format at 256 px."""
@@ -242,6 +270,13 @@ class MapTiles:
         """A layer's tile as file bytes (JPEG; PNG for "labels"), or None where it has none. Raises
         imagery.ImageryError when a fetch failed."""
         z, x, y = check_tile(z, x, y)
+        if layer == "winter":
+            got = self.tile(z, x, y)
+            if got is None:
+                return None
+            if not winter_regions.tile_is_siberia(z, x, y):
+                return got[0]
+            return winterize_jpeg(got[0])
         if layer == "sat":
             r = self.tile(z, x, y)
             return r[0] if r is not None else None

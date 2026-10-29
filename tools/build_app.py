@@ -153,6 +153,7 @@ def pyinstaller(work, ico, onefile, ver=None, boot=None):
            "--add-data", f"{os.path.join(server, 'koppen_1991_2020_0p1.png')}{SEP}.",  # (climate.PATH)
            "--add-data", f"{os.path.join(server, 'oil_wells.npz')}{SEP}.",  # (oilwells.PATH)
            "--add-data", f"{os.path.join(server, 'building_overrides.json')}{SEP}.",  # (buildings.load_building_overrides)
+           "--add-data", f"{os.path.join(server, 'data', 'winter', 'russia_admin0_50m.geojson.gz')}{SEP}data/winter",
            "--add-data", f"{os.path.join(server, 'refineries.npz')}{SEP}.",  # (industry.PATH)
            # (overture.BUNDLED: the pinned release's STAC index, tools/build_stac_index.py)
            "--add-data", f"{os.path.join(server, 'overture_stac_' + _overture_release() + '.json.gz')}{SEP}.",
